@@ -16,5 +16,122 @@ permissions:
   contents: read
 
 jobs:
-  root-readme-links:
-    uses: InfrastructureProductWorks/.github/.github/workflows/root-readme-links.yml@a431313396683df3ed13307ad1ddd8b9429adf63
+  validate-root-readme-links:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+
+      - name: Validate root README links
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import re
+          import sys
+          import urllib.error
+          import urllib.parse
+          import urllib.request
+          from pathlib import Path
+
+          readme = Path("README.md")
+          if not readme.is_file():
+              raise SystemExit("root README.md is missing")
+
+          text = readme.read_text(encoding="utf-8")
+          failures = []
+          warnings = []
+
+          def slug(value: str) -> str:
+              value = re.sub(r"<[^>]+>", "", value.strip().lower())
+              value = re.sub(r"[`*_~]", "", value)
+              value = "".join(ch for ch in value if ch.isalnum() or ch in " -_")
+              return value.replace(" ", "-")
+
+          anchors = set()
+          seen = {}
+          for line in text.splitlines():
+              match = re.match(r"^#{1,6}\s+(.+?)\s*#*\s*$", line)
+              if not match:
+                  continue
+              base = slug(match.group(1))
+              count = seen.get(base, 0)
+              seen[base] = count + 1
+              anchors.add(base if count == 0 else f"{base}-{count}")
+
+          targets = re.findall(r"!?\[[^\]]*\]\(([^)]+)\)", text)
+          targets += re.findall(r"\b(?:href|src)=[\"']([^\"']+)[\"']", text, flags=re.I)
+
+          def clean(raw: str) -> str:
+              raw = raw.strip()
+              if raw.startswith("<") and ">" in raw:
+                  raw = raw[1:raw.index(">")]
+              elif " \"" in raw or " '" in raw:
+                  raw = raw.split(maxsplit=1)[0]
+              return raw.strip()
+
+          checked = set()
+          for raw in targets:
+              target = clean(raw)
+              if not target or target in checked:
+                  continue
+              checked.add(target)
+              lower = target.lower()
+
+              if lower.startswith(("mailto:", "tel:", "data:", "javascript:")):
+                  continue
+
+              if target.startswith("#"):
+                  fragment = urllib.parse.unquote(target[1:])
+                  if fragment and fragment not in anchors:
+                      failures.append(f"missing README anchor: {target}")
+                  continue
+
+              if lower.startswith(("http://", "https://")):
+                  request = urllib.request.Request(
+                      target,
+                      headers={"User-Agent": "iaap-guard-root-readme-link-check/1.0"},
+                      method="HEAD",
+                  )
+                  try:
+                      with urllib.request.urlopen(request, timeout=12) as response:
+                          if response.getcode() in (404, 410):
+                              failures.append(f"broken HTTP link ({response.getcode()}): {target}")
+                  except urllib.error.HTTPError as exc:
+                      if exc.code in (404, 410):
+                          failures.append(f"broken HTTP link ({exc.code}): {target}")
+                      else:
+                          warnings.append(f"HTTP {exc.code}, not treated as broken: {target}")
+                  except Exception as exc:
+                      warnings.append(f"HTTP probe failed, not treated as broken: {target} ({exc})")
+                  continue
+
+              parsed = urllib.parse.urlsplit(target)
+              if parsed.path:
+                  candidate = (readme.parent / urllib.parse.unquote(parsed.path)).resolve()
+                  root = Path.cwd().resolve()
+                  try:
+                      candidate.relative_to(root)
+                  except ValueError:
+                      failures.append(f"local path escapes repository: {target}")
+                      continue
+                  if not candidate.exists():
+                      failures.append(f"missing local target: {target}")
+              if parsed.fragment:
+                  fragment = urllib.parse.unquote(parsed.fragment)
+                  if fragment and fragment not in anchors:
+                      failures.append(f"missing README anchor: #{fragment}")
+
+          for warning in warnings:
+              print(f"WARNING: {warning}")
+
+          if failures:
+              print("Root README link integrity FAILED:")
+              for failure in failures:
+                  print(f" - {failure}")
+              sys.exit(1)
+
+          print(f"Root README link integrity passed: {len(checked)} unique targets checked.")
+          PY
