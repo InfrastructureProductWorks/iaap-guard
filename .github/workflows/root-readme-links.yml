@@ -2,15 +2,9 @@ name: Root README link integrity
 
 on:
   pull_request:
-    paths:
-      - README.md
-      - .github/workflows/root-readme-links.yml
   push:
     branches:
       - main
-    paths:
-      - README.md
-      - .github/workflows/root-readme-links.yml
 
 permissions:
   contents: read
@@ -82,19 +76,13 @@ jobs:
 
               if lower.startswith(("mailto:", "tel:", "data:", "javascript:")):
                   continue
-
               if target.startswith("#"):
                   fragment = urllib.parse.unquote(target[1:])
                   if fragment and fragment not in anchors:
                       failures.append(f"missing README anchor: {target}")
                   continue
-
               if lower.startswith(("http://", "https://")):
-                  request = urllib.request.Request(
-                      target,
-                      headers={"User-Agent": "iaap-guard-root-readme-link-check/1.0"},
-                      method="HEAD",
-                  )
+                  request = urllib.request.Request(target, headers={"User-Agent": "iaap-guard-root-readme-link-check/1.0"}, method="HEAD")
                   try:
                       with urllib.request.urlopen(request, timeout=12) as response:
                           if response.getcode() in (404, 410):
@@ -126,12 +114,10 @@ jobs:
 
           for warning in warnings:
               print(f"WARNING: {warning}")
-
           if failures:
               print("Root README link integrity FAILED:")
               for failure in failures:
                   print(f" - {failure}")
               sys.exit(1)
-
           print(f"Root README link integrity passed: {len(checked)} unique targets checked.")
           PY
