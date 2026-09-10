@@ -47,19 +47,37 @@ Before a customer-impacting Guard update is offered as a supported stable releas
 
 A release note should say `not applicable` when a lifecycle or authority item genuinely does not apply rather than leave a material question ambiguous.
 
-## Hosted GitHub App versus selected Guard behavior
+## Hosted GitHub App customer selection
 
 Installing the IaaP Guard GitHub App establishes the bounded GitHub integration described in [GITHUB-APP-BETA.md](GITHUB-APP-BETA.md). It does not grant IaaP Guard permission to rewrite customer repositories, merge pull requests, deploy infrastructure, hold cloud credentials, or silently authorize customer adoption of a new governance contract.
 
-The hosted service may receive contract-neutral operational maintenance. A change that alters supported Guard evaluation behavior, contracts, permissions, data handling, or authority boundaries is instead handled as a documented customer-impacting release.
+The concrete customer-selection contract is repository owned. When supported by the deployed Guard runtime, a customer may add `.iaap/guard-update.json` to the repository through its normal change-management process:
 
-Where a Guard distribution mode supports an explicitly selected or pinned evaluation version, that selection should remain customer controlled and integrity bound. The customer should be able to identify the selected release, its integrity reference, and the documentation that described the release.
+```json
+{
+  "schemaVersion": "iaap-guard-update-selection/v1",
+  "policyCatalogVersion": "<published-catalog-version>",
+  "policyCatalogDigest": "sha256:<published-catalog-digest>"
+}
+```
 
-The current hosted GitHub App permission boundary must not be widened merely to automate customer upgrades.
+The App reads this file using its existing Contents read permission. It does not create or modify the file.
+
+The selected catalog must be one of the immutable policy catalogs bundled by the deployed Guard runtime, and the configured digest must match that bundled catalog exactly. Unknown versions, duplicate bundled catalog identities, malformed selection documents, unexpected fields, or digest mismatches fail closed rather than falling forward to another policy version.
+
+If `.iaap/guard-update.json` is absent, Guard uses the runtime's explicitly packaged default catalog. This preserves backward compatibility for existing installations. Absence is not treated as permission for Guard to rewrite customer configuration.
+
+A customer adopts a new policy catalog by reviewing the documentation and compatibility evidence and then changing the version and digest in `.iaap/guard-update.json`. Rollback is the inverse customer-controlled change to a previously supported bundled catalog version and digest.
+
+This mechanism separates provider-operated runtime maintenance from customer-selected governance semantics. A runtime release may carry multiple immutable supported catalogs so a newer runtime can continue evaluating a customer against its selected older catalog while a newer candidate remains available for review.
+
+The selection mechanism does not require repository content-write permission and contains no `autoUpdate`, `autoInstall`, merge, deployment, or infrastructure-execution authority.
+
+Until a Guard runtime containing this selection contract is accepted and deployed, the current hosted App continues to use its packaged default policy catalog. Documentation of this mechanism does not claim that a not-yet-deployed runtime feature is already active.
 
 ## Engine, policy, and contract identity
 
-Guard updates should distinguish these identities when the distribution mode supports separate versioning:
+Guard updates distinguish these identities where the distribution mode supports separate versioning:
 
 - **evaluation engine** - the deterministic implementation version;
 - **policy or rule bundle** - the version of deterministic governance semantics;
@@ -67,8 +85,6 @@ Guard updates should distinguish these identities when the distribution mode sup
 - **distribution surface** - the GitHub App, local/offline package, or another explicitly supported Guard distribution mode.
 
 A runtime implementation fix that does not change evaluation semantics is materially different from a policy update that can change an evaluation outcome. Release documentation must make that distinction clear.
-
-This document does not claim that every Guard distribution mode currently exposes all four identifiers independently. Separate identity is the update-contract direction where it can be implemented without weakening integrity or authority boundaries.
 
 ## Compatibility validation
 
@@ -87,7 +103,7 @@ Where candidate comparison is not yet implemented for a distribution mode, the r
 
 ## Customer notification
 
-A future Guard update-notification surface may report information such as:
+A Guard update-notification surface may report information such as:
 
 - current or selected supported version;
 - available candidate or stable version;
@@ -95,15 +111,13 @@ A future Guard update-notification surface may report information such as:
 - compatibility status when available; and
 - whether customer action is required.
 
-Such a notification must remain advisory unless the customer separately performs the documented adoption action. Notification alone must not rewrite repository content, change a selected evaluation contract, merge a change, or activate infrastructure authority.
-
-This section defines the intended update experience; it does not claim that automated update notification or candidate comparison is implemented today.
+Such a notification remains advisory unless the customer separately performs the documented adoption action. Notification alone must not rewrite repository content, change a selected evaluation contract, merge a change, or activate infrastructure authority.
 
 ## Customer-authorized adoption
 
-For customer-pinned Guard distribution modes, adoption should be an explicit customer-controlled change such as a version, immutable revision, or digest update in customer-owned configuration or source control.
+For the hosted selection contract, adoption is an explicit customer-controlled change to `.iaap/guard-update.json`. Other future customer-pinned Guard distribution modes may use an equivalent immutable version or digest selection in customer-owned configuration or source control.
 
-The adoption record should be reviewable and should preserve enough information to identify:
+The adoption record should preserve enough information to identify:
 
 - prior selected version;
 - newly selected version;
@@ -112,7 +126,7 @@ The adoption record should be reviewable and should preserve enough information 
 - compatibility evidence when produced; and
 - the customer-controlled change that authorized the selection.
 
-The GitHub App does not need repository content-write permission to satisfy this model. Customers can make and review the adoption change using their existing change-management process.
+The GitHub App does not need repository content-write permission to satisfy this model. Customers make and review the adoption change using their existing change-management process.
 
 ## Verification after adoption
 
@@ -124,7 +138,7 @@ A successful verification does not create cloud execution, merge, provisioning, 
 
 Every supported update path must provide a rollback procedure or explicitly state why rollback is not applicable.
 
-For a version-pinned distribution mode, rollback should normally mean returning the customer-controlled selection to a previously supported immutable version or digest and then re-running verification.
+For the hosted repository-owned selection contract, rollback means restoring `.iaap/guard-update.json` to the previously supported bundled catalog version and digest and then re-running Guard verification.
 
 Rollback documentation must identify any evidence or configuration that must be retained to reproduce the prior state. Historical release documentation should remain available so the prior behavior can be understood rather than reconstructed from current documentation.
 
