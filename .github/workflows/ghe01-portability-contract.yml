@@ -25,6 +25,11 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
+      - name: Install Draft 2020-12 schema validator
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m pip install --disable-pip-version-check --no-deps jsonschema==4.25.1 attrs==25.3.0 jsonschema-specifications==2025.4.1 referencing==0.36.2 rpds-py==0.27.1
       - name: Validate bounded customer-controlled GitHub contract
         shell: bash
         run: |
@@ -35,11 +40,34 @@ jobs:
           from pathlib import Path
           from urllib.parse import urlparse
 
+          from jsonschema import Draft202012Validator
+          from jsonschema.exceptions import SchemaError, ValidationError
+
           schema = json.loads(Path("schemas/customer-controlled-github.schema.json").read_text())
           fixture = json.loads(Path("config/customer-controlled-github-ghes.synthetic.json").read_text())
 
           if schema.get("title") != "IaaP Guard customer-controlled GitHub portability contract":
               raise SystemExit("unexpected GHE-01 schema identity")
+
+          try:
+              Draft202012Validator.check_schema(schema)
+          except SchemaError as exc:
+              raise SystemExit(f"invalid Draft 2020-12 schema: {exc.message}")
+
+          validator = Draft202012Validator(schema)
+
+          def schema_errors(record):
+              return sorted(
+                  error.message
+                  for error in validator.iter_errors(record)
+              )
+
+          def hosted_github_hostname(value):
+              if not isinstance(value, str):
+                  return False
+              parsed = urlparse(value)
+              hostname = (parsed.hostname or "").rstrip(".").casefold()
+              return hostname in {"github.com", "api.github.com"}
 
           def errors(record):
               observed = []
@@ -82,12 +110,13 @@ jobs:
                   parsed = urlparse(value) if isinstance(value, str) else None
                   if not parsed or parsed.scheme != "https" or not parsed.netloc:
                       observed.append(key)
-              if record.get("webBaseUrl") == "https://github.com":
-                  observed.append("webBaseUrl-hardcoded-github.com")
-              if record.get("apiBaseUrl") == "https://api.github.com":
-                  observed.append("apiBaseUrl-hardcoded-github.com")
+                  if record.get("platform") == "ghes" and hosted_github_hostname(value):
+                      observed.append(f"{key}-hosted-github")
               return sorted(set(observed))
 
+          baseline_schema_errors = schema_errors(fixture)
+          if baseline_schema_errors:
+              raise SystemExit(f"GHE-01 fixture fails declared schema: {baseline_schema_errors}")
           baseline_errors = errors(fixture)
           if baseline_errors:
               raise SystemExit(f"GHE-01 synthetic fixture invalid: {baseline_errors}")
@@ -100,17 +129,22 @@ jobs:
               ("appOwnership", "vendor-hosted"),
               ("installationOwnership", "vendor-controlled"),
               ("webBaseUrl", "https://github.com"),
+              ("webBaseUrl", "https://github.com/"),
               ("apiBaseUrl", "https://api.github.com"),
+              ("apiBaseUrl", "https://api.github.com/api/v3"),
+              ("apiBaseUrl", "https://API.GITHUB.COM./api/v3"),
           ]
           for key, value in mutations:
               mutated = copy.deepcopy(fixture)
               mutated[key] = value
-              if not errors(mutated):
-                  raise SystemExit(f"mutation was not rejected: {key}")
+              if not schema_errors(mutated) and not errors(mutated):
+                  raise SystemExit(f"mutation was not rejected: {key}={value}")
 
           for key in fixture["authority"]:
               mutated = copy.deepcopy(fixture)
               mutated["authority"][key] = True
+              if not schema_errors(mutated):
+                  raise SystemExit(f"schema did not reject authority mutation: {key}")
               if not errors(mutated):
                   raise SystemExit(f"authority mutation was not rejected: {key}")
 
@@ -122,8 +156,21 @@ jobs:
           }.items():
               mutated = copy.deepcopy(fixture)
               mutated["requiredPermissions"][key] = value
+              if not schema_errors(mutated):
+                  raise SystemExit(f"schema did not reject permission mutation: {key}")
               if not errors(mutated):
                   raise SystemExit(f"permission mutation was not rejected: {key}")
+
+          # Prove the declared schema itself is part of the gate, rather than merely parsed.
+          mutated_schema = copy.deepcopy(schema)
+          mutated_schema["properties"]["supportClaim"] = {"const": True}
+          mutated_validator = Draft202012Validator(mutated_schema)
+          try:
+              mutated_validator.validate(fixture)
+          except ValidationError:
+              pass
+          else:
+              raise SystemExit("schema-drift mutation was not rejected")
 
           print("GHE-01 customer-controlled GitHub portability contract: PASS")
           PY
