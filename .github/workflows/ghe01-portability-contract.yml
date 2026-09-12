@@ -29,11 +29,12 @@ jobs:
           def same_typed(a,b): return type(a) is type(b) and a==b
           def false_bool(v): return type(v) is bool and v is False
           expected_permissions={'metadata':'read','contents':'read','pull_requests':'read','checks':'write'}
+          expected_permission_schemas={k:{'const':v} for k,v in expected_permissions.items()}
           required_authority={'repositoryWriteAuthorityAdded','infrastructureAuthorityAdded','authorizationAuthorityAdded','mergeAuthorityAdded','deploymentAuthorityAdded'}
-          # Assert the machine-readable nested boundary itself, not merely sentinel mutations.
+          expected_authority_schemas={k:{'const':False} for k in required_authority}
           perm_schema=schema['properties']['requiredPermissions']; auth_schema=schema['properties']['authority']
-          if perm_schema.get('additionalProperties') is not False or set(perm_schema.get('properties',{}))!=set(expected_permissions) or set(perm_schema.get('required',[]))!=set(expected_permissions):raise SystemExit('requiredPermissions schema keyset widened')
-          if auth_schema.get('additionalProperties') is not False or set(auth_schema.get('properties',{}))!=required_authority or set(auth_schema.get('required',[]))!=required_authority:raise SystemExit('authority schema keyset widened')
+          if perm_schema.get('type')!='object' or perm_schema.get('additionalProperties') is not False or set(perm_schema.get('required',[]))!=set(expected_permissions) or perm_schema.get('properties')!=expected_permission_schemas:raise SystemExit('requiredPermissions schema widened')
+          if auth_schema.get('type')!='object' or auth_schema.get('additionalProperties') is not False or set(auth_schema.get('required',[]))!=required_authority or auth_schema.get('properties')!=expected_authority_schemas:raise SystemExit('authority schema widened')
           def nh(v):
               p=urlparse(v) if isinstance(v,str) else None
               if not p or not p.hostname:return None
@@ -63,7 +64,7 @@ jobs:
                   v=r.get(k);p=urlparse(v) if isinstance(v,str) else None;normalized=nh(v)
                   if not p or p.scheme!='https' or not p.netloc or not p.hostname:o.append(k)
                   if p and (p.username is not None or p.password is not None):o.append(k+'-userinfo')
-                  if p and (p.query or p.fragment):o.append(k+'-query-fragment')
+                  if p and (p.params or p.query or p.fragment):o.append(k+'-params-query-fragment')
                   if normalized is None:o.append(k+'-hostname-normalization')
                   if r.get('platform')=='ghes' and hosted(v):o.append(k+'-hosted-github')
                   if p and r.get('platform')=='ghes':
@@ -75,8 +76,7 @@ jobs:
           boundary_mutations=[('supportClaim',True),('authorizedTargetObserved',True),('networkProbePerformed',True),('credentialsEmbedded',True),('appOwnership','vendor-hosted'),('installationOwnership','vendor-controlled'),('repositorySelection','all')]
           for k,v in boundary_mutations:
               m=copy.deepcopy(fixture);m[k]=v
-              if not se(m):raise SystemExit('schema accepted boundary mutation '+k+'='+repr(v))
-              if not sem(m):raise SystemExit('semantic gate accepted boundary mutation '+k+'='+repr(v))
+              if not se(m) or not sem(m):raise SystemExit('boundary mutation accepted '+k)
           for k in ('supportClaim','authorizedTargetObserved','networkProbePerformed','credentialsEmbedded'):
               m=copy.deepcopy(fixture);m[k]=0
               if not se(m) or not sem(m):raise SystemExit('numeric zero boundary accepted '+k)
@@ -104,16 +104,15 @@ jobs:
           for k,v in [('webBaseUrl','https://github.enterprise.example bad'),('apiBaseUrl','https://api.github.enterprise.example bad/api/v3'),('webBaseUrl','not-a-uri')]:
               m=copy.deepcopy(fixture);m[k]=v
               if not se(m):raise SystemExit('malformed URI accepted '+k)
-          credential_cases=[('webBaseUrl','https://token@github.enterprise.example'),('apiBaseUrl','https://user:secret@api.github.enterprise.example/api/v3'),('webBaseUrl','https://github.enterprise.example/?access_token=secret'),('apiBaseUrl','https://api.github.enterprise.example/api/v3?token=secret'),('webBaseUrl','https://github.enterprise.example/#access_token=secret'),('apiBaseUrl','https://api.github.enterprise.example/api/v3#token=secret'),('webBaseUrl','https://github.enterprise.example/access_token=secret'),('apiBaseUrl','https://api.github.enterprise.example/api/v3/access_token=secret')]
+          credential_cases=[('webBaseUrl','https://token@github.enterprise.example'),('apiBaseUrl','https://user:secret@api.github.enterprise.example/api/v3'),('webBaseUrl','https://github.enterprise.example/?access_token=secret'),('apiBaseUrl','https://api.github.enterprise.example/api/v3?token=secret'),('webBaseUrl','https://github.enterprise.example/#access_token=secret'),('apiBaseUrl','https://api.github.enterprise.example/api/v3#token=secret'),('webBaseUrl','https://github.enterprise.example/access_token=secret'),('apiBaseUrl','https://api.github.enterprise.example/api/v3/access_token=secret'),('webBaseUrl','https://github.enterprise.example/;access_token=secret'),('apiBaseUrl','https://api.github.enterprise.example/api/v3;access_token=secret')]
           for k,v in credential_cases:
               m=copy.deepcopy(fixture);m[k]=v
-              if not se(m):raise SystemExit('schema accepted credential/path mutation '+k)
-              if not sem(m):raise SystemExit('semantic gate accepted credential/path mutation '+k)
+              if not se(m):raise SystemExit('schema accepted credential/path/param mutation '+k)
+              if not sem(m):raise SystemExit('semantic gate accepted credential/path/param mutation '+k)
           path_cases=[('webBaseUrl','https://github.enterprise.example/anything'),('apiBaseUrl','https://api.github.enterprise.example/anything'),('apiBaseUrl','https://api.github.enterprise.example/api/v4')]
           for k,v in path_cases:
               m=copy.deepcopy(fixture);m[k]=v
-              if not se(m):raise SystemExit('schema accepted unexpected base path '+k)
-              if not sem(m):raise SystemExit('semantic gate accepted unexpected base path '+k)
+              if not se(m) or not sem(m):raise SystemExit('unexpected base path accepted '+k)
           for k in fixture['authority']:
               m=copy.deepcopy(fixture);m['authority'][k]=True
               if not se(m) or not sem(m):raise SystemExit('authority mutation accepted '+k)
