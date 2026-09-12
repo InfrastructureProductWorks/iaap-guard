@@ -32,15 +32,11 @@ jobs:
               p=urlparse(v) if isinstance(v,str) else None
               if not p or not p.hostname:return None
               decoded=unquote(p.hostname).casefold()
-              # Reject repeated ASCII separators before mapping; permit at most one root dot.
               if decoded.endswith('..'):return None
-              had_root=decoded.endswith('.')
-              if had_root:decoded=decoded[:-1]
+              if decoded.endswith('.'):decoded=decoded[:-1]
               if not decoded:return None
               try:mapped=idna.uts46_remap(decoded,std3_rules=True,transitional=False).casefold()
               except idna.IDNAError:return None
-              # UTS #46 can turn Unicode separators into ASCII dots. A trailing dot
-              # here means the input had another separator before the optional root.
               if not mapped or mapped.endswith('.'):return None
               try:ascii_host=idna.encode(mapped,uts46=False,std3_rules=True).decode().casefold()
               except idna.IDNAError:return None
@@ -66,9 +62,11 @@ jobs:
                   if r.get('platform')=='ghes' and hosted(v):o.append(k+'-hosted-github')
               return sorted(set(o))
           if se(fixture) or sem(fixture):raise SystemExit('baseline fixture invalid')
-          for k,v in [('supportClaim',True),('authorizedTargetObserved',True),('networkProbePerformed',True),('credentialsEmbedded',True),('appOwnership','vendor-hosted'),('installationOwnership','vendor-controlled')]:
+          boundary_mutations=[('supportClaim',True),('authorizedTargetObserved',True),('networkProbePerformed',True),('credentialsEmbedded',True),('appOwnership','vendor-hosted'),('installationOwnership','vendor-controlled'),('repositorySelection','all')]
+          for k,v in boundary_mutations:
               m=copy.deepcopy(fixture);m[k]=v
-              if not se(m) or not sem(m):raise SystemExit('boundary mutation accepted '+k)
+              if not se(m):raise SystemExit('schema accepted boundary mutation '+k+'='+repr(v))
+              if not sem(m):raise SystemExit('semantic gate accepted boundary mutation '+k+'='+repr(v))
           for k in ('supportClaim','authorizedTargetObserved','networkProbePerformed','credentialsEmbedded'):
               m=copy.deepcopy(fixture);m[k]=0
               if not se(m) or not sem(m):raise SystemExit('numeric zero boundary accepted '+k)
