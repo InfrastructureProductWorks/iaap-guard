@@ -4,80 +4,34 @@
   "title": "IaaP Guard customer-controlled GitHub portability contract",
   "type": "object",
   "additionalProperties": false,
-  "required": [
-    "schemaVersion",
-    "platform",
-    "webBaseUrl",
-    "apiBaseUrl",
-    "appOwnership",
-    "installationOwnership",
-    "repositorySelection",
-    "requiredPermissions",
-    "supportClaim",
-    "authorizedTargetObserved",
-    "networkProbePerformed",
-    "credentialsEmbedded",
-    "authority"
-  ],
+  "required": ["schemaVersion", "platform", "webBaseUrl", "apiBaseUrl", "appOwnership", "installationOwnership", "repositorySelection", "requiredPermissions", "supportClaim", "authorizedTargetObserved", "networkProbePerformed", "credentialsEmbedded", "authority"],
   "properties": {
     "schemaVersion": {"const": "iaap-guard-customer-github/v0"},
     "platform": {"enum": ["github.com", "ghes"]},
-    "webBaseUrl": {"type": "string", "format": "uri", "pattern": "^https://"},
-    "apiBaseUrl": {"type": "string", "format": "uri", "pattern": "^https://"},
+    "webBaseUrl": {"type": "string", "format": "uri", "pattern": "^https://[^@/]+(?:/|$)"},
+    "apiBaseUrl": {"type": "string", "format": "uri", "pattern": "^https://[^@/]+(?:/|$)"},
     "appOwnership": {"enum": ["vendor-hosted", "customer-controlled"]},
     "installationOwnership": {"const": "customer-controlled"},
     "repositorySelection": {"const": "explicit"},
     "requiredPermissions": {
-      "type": "object",
-      "additionalProperties": false,
+      "type": "object", "additionalProperties": false,
       "required": ["metadata", "contents", "pull_requests", "checks"],
-      "properties": {
-        "metadata": {"const": "read"},
-        "contents": {"const": "read"},
-        "pull_requests": {"const": "read"},
-        "checks": {"const": "write"}
-      }
+      "properties": {"metadata": {"const": "read"}, "contents": {"const": "read"}, "pull_requests": {"const": "read"}, "checks": {"const": "write"}}
     },
     "supportClaim": {"const": false},
     "authorizedTargetObserved": {"const": false},
     "networkProbePerformed": {"const": false},
     "credentialsEmbedded": {"const": false},
     "authority": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "repositoryWriteAuthorityAdded",
-        "infrastructureAuthorityAdded",
-        "authorizationAuthorityAdded",
-        "mergeAuthorityAdded",
-        "deploymentAuthorityAdded"
-      ],
+      "type": "object", "additionalProperties": false,
+      "required": ["repositoryWriteAuthorityAdded", "infrastructureAuthorityAdded", "authorizationAuthorityAdded", "mergeAuthorityAdded", "deploymentAuthorityAdded"],
       "properties": {
-        "repositoryWriteAuthorityAdded": {"const": false},
-        "infrastructureAuthorityAdded": {"const": false},
-        "authorizationAuthorityAdded": {"const": false},
-        "mergeAuthorityAdded": {"const": false},
-        "deploymentAuthorityAdded": {"const": false}
+        "repositoryWriteAuthorityAdded": {"const": false}, "infrastructureAuthorityAdded": {"const": false}, "authorizationAuthorityAdded": {"const": false}, "mergeAuthorityAdded": {"const": false}, "deploymentAuthorityAdded": {"const": false}
       }
     }
   },
   "allOf": [
-    {
-      "if": {"properties": {"platform": {"const": "github.com"}}},
-      "then": {
-        "properties": {
-          "webBaseUrl": {"const": "https://github.com"},
-          "apiBaseUrl": {"const": "https://api.github.com"}
-        }
-      }
-    },
-    {
-      "if": {"properties": {"platform": {"const": "ghes"}}},
-      "then": {
-        "properties": {
-          "appOwnership": {"const": "customer-controlled"}
-        }
-      }
-    }
+    {"if": {"properties": {"platform": {"const": "github.com"}}}, "then": {"properties": {"webBaseUrl": {"const": "https://github.com"}, "apiBaseUrl": {"const": "https://api.github.com"}}}},
+    {"if": {"properties": {"platform": {"const": "ghes"}}}, "then": {"properties": {"appOwnership": {"const": "customer-controlled"}}}}
   ]
 }
