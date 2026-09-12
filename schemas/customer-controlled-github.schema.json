@@ -8,8 +8,8 @@
   "properties": {
     "schemaVersion": {"const": "iaap-guard-customer-github/v0"},
     "platform": {"enum": ["github.com", "ghes"]},
-    "webBaseUrl": {"type": "string", "format": "uri", "pattern": "^https://[^@/?#]+(?:/[^?#]*)?$"},
-    "apiBaseUrl": {"type": "string", "format": "uri", "pattern": "^https://[^@/?#]+(?:/[^?#]*)?$"},
+    "webBaseUrl": {"type": "string", "format": "uri", "pattern": "^https://[^@/?#]+/?$"},
+    "apiBaseUrl": {"type": "string", "format": "uri", "pattern": "^https://[^@/?#]+(?:/api/v3)?/?$"},
     "appOwnership": {"enum": ["vendor-hosted", "customer-controlled"]},
     "installationOwnership": {"const": "customer-controlled"},
     "repositorySelection": {"const": "explicit"},
@@ -22,6 +22,6 @@
   },
   "allOf": [
     {"if": {"properties": {"platform": {"const": "github.com"}}}, "then": {"properties": {"webBaseUrl": {"const": "https://github.com"}, "apiBaseUrl": {"const": "https://api.github.com"}}}},
-    {"if": {"properties": {"platform": {"const": "ghes"}}}, "then": {"properties": {"appOwnership": {"const": "customer-controlled"}}}}
+    {"if": {"properties": {"platform": {"const": "ghes"}}}, "then": {"properties": {"appOwnership": {"const": "customer-controlled"}, "webBaseUrl": {"pattern": "^https://[^@/?#]+/?$"}, "apiBaseUrl": {"pattern": "^https://[^@/?#]+/api/v3/?$"}}}}
   ]
 }
