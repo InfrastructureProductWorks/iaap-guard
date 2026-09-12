@@ -15,7 +15,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with: {persist-credentials: false}
       - name: Install Draft 2020-12 schema validator
-        run: python3 -m pip install --disable-pip-version-check --no-deps jsonschema==4.25.1 attrs==25.3.0 jsonschema-specifications==2025.4.1 referencing==0.36.2 rpds-py==0.27.1 fqdn==1.5.1 idna==3.10 rfc3987-syntax==1.1.0
+        run: python3 -m pip install --disable-pip-version-check --no-deps jsonschema==4.25.1 attrs==25.3.0 jsonschema-specifications==2025.4.1 referencing==0.36.2 rpds-py==0.27.1 fqdn==1.5.1 idna==3.10 rfc3986-validator==0.1.1
       - name: Validate bounded customer-controlled GitHub contract
         shell: bash
         run: |
@@ -23,7 +23,7 @@ jobs:
           python3 - <<'PY'
           import copy, json
           from pathlib import Path
-          from urllib.parse import urlparse
+          from urllib.parse import unquote, urlparse
           from jsonschema import Draft202012Validator, FormatChecker
           from jsonschema.exceptions import SchemaError
 
@@ -34,9 +34,11 @@ jobs:
           except SchemaError as exc: raise SystemExit(f'invalid schema: {exc.message}')
           validator=Draft202012Validator(schema, format_checker=FormatChecker())
           def se(r): return sorted(e.message for e in validator.iter_errors(r))
-          def hosted(v):
+          def normalized_hostname(v):
               p=urlparse(v) if isinstance(v,str) else None
-              return bool(p and (p.hostname or '').rstrip('.').casefold() in {'github.com','api.github.com'})
+              if not p or not p.hostname: return ''
+              return unquote(p.hostname).rstrip('.').casefold()
+          def hosted(v): return normalized_hostname(v) in {'github.com','api.github.com'}
           def sem(r):
               out=[]
               exact={'schemaVersion':'iaap-guard-customer-github/v0','platform':'ghes','appOwnership':'customer-controlled','installationOwnership':'customer-controlled','repositorySelection':'explicit','supportClaim':False,'authorizedTargetObserved':False,'networkProbePerformed':False,'credentialsEmbedded':False}
@@ -56,9 +58,9 @@ jobs:
               m=copy.deepcopy(fixture); m[k]=v
               if not se(m): raise SystemExit(f'schema did not reject boundary: {k}')
               if not sem(m): raise SystemExit(f'semantic gate did not reject boundary: {k}')
-          for k,v in [('webBaseUrl','https://github.com'),('webBaseUrl','https://github.com/'),('apiBaseUrl','https://api.github.com/api/v3'),('apiBaseUrl','https://API.GITHUB.COM./api/v3')]:
+          for k,v in [('webBaseUrl','https://github.com'),('webBaseUrl','https://github.com/'),('apiBaseUrl','https://api.github.com/api/v3'),('apiBaseUrl','https://API.GITHUB.COM./api/v3'),('webBaseUrl','https://github%2ecom'),('webBaseUrl','https://github%2Ecom/'),('apiBaseUrl','https://api%2egithub%2ecom/api/v3'),('apiBaseUrl','https://API%2EGITHUB%2ECOM./api/v3')]:
               m=copy.deepcopy(fixture); m[k]=v
-              if not sem(m): raise SystemExit(f'hosted coordinate not rejected: {k}')
+              if not sem(m): raise SystemExit(f'hosted coordinate not rejected: {k}={v}')
           for k,v in [('webBaseUrl','https://github.enterprise.example bad'),('apiBaseUrl','https://api.github.enterprise.example bad/api/v3'),('webBaseUrl','not-a-uri')]:
               m=copy.deepcopy(fixture); m[k]=v
               if not se(m): raise SystemExit(f'malformed URI not rejected: {k}')
