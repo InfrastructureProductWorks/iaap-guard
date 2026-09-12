@@ -1,0 +1,108 @@
+name: EP-08 GHE-01 portability contract
+on:
+  pull_request:
+    paths: ["schemas/customer-controlled-github.schema.json", "config/customer-controlled-github-ghes.synthetic.json", "docs/EP-08-GHE-01-CUSTOMER-CONTROLLED-GITHUB.md", ".github/workflows/ghe01-portability-contract.yml"]
+  push:
+    branches: [main]
+    paths: ["schemas/customer-controlled-github.schema.json", "config/customer-controlled-github-ghes.synthetic.json", "docs/EP-08-GHE-01-CUSTOMER-CONTROLLED-GITHUB.md", ".github/workflows/ghe01-portability-contract.yml"]
+permissions: {contents: read}
+jobs:
+  validate-ghe01-contract:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with: {persist-credentials: false}
+      - name: Install validator dependencies
+        run: python3 -m pip install --disable-pip-version-check --no-deps jsonschema==4.25.1 attrs==25.3.0 jsonschema-specifications==2025.4.1 referencing==0.36.2 rpds-py==0.27.1 fqdn==1.5.1 idna==3.10 rfc3986-validator==0.1.1
+      - name: Validate bounded customer-controlled GitHub contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import copy,json,idna
+          from pathlib import Path
+          from urllib.parse import unquote,urlparse
+          from jsonschema import Draft202012Validator,FormatChecker
+          schema=json.loads(Path('schemas/customer-controlled-github.schema.json').read_text()); fixture=json.loads(Path('config/customer-controlled-github-ghes.synthetic.json').read_text())
+          Draft202012Validator.check_schema(schema); validator=Draft202012Validator(schema,format_checker=FormatChecker())
+          def se(r): return sorted(e.message for e in validator.iter_errors(r))
+          def same_typed(a,b): return type(a) is type(b) and a==b
+          def false_bool(v): return type(v) is bool and v is False
+          def nh(v):
+              p=urlparse(v) if isinstance(v,str) else None
+              if not p or not p.hostname:return None
+              decoded=unquote(p.hostname).casefold()
+              if decoded.endswith('..'):return None
+              if decoded.endswith('.'):decoded=decoded[:-1]
+              if not decoded:return None
+              try:mapped=idna.uts46_remap(decoded,std3_rules=True,transitional=False).casefold()
+              except idna.IDNAError:return None
+              if not mapped or mapped.endswith('.'):return None
+              try:ascii_host=idna.encode(mapped,uts46=False,std3_rules=True).decode().casefold()
+              except idna.IDNAError:return None
+              if not ascii_host or ascii_host.endswith('.'):return None
+              return ascii_host
+          def hosted(v):
+              h=nh(v);return bool(h and (h=='github.com' or h.endswith('.github.com')))
+          def sem(r):
+              o=[];exact={'schemaVersion':'iaap-guard-customer-github/v0','platform':'ghes','appOwnership':'customer-controlled','installationOwnership':'customer-controlled','repositorySelection':'explicit'}
+              for k,v in exact.items():
+                  if not same_typed(r.get(k),v):o.append(k)
+              for k in ('supportClaim','authorizedTargetObserved','networkProbePerformed','credentialsEmbedded'):
+                  if not false_bool(r.get(k)):o.append(k)
+              if r.get('requiredPermissions')!={'metadata':'read','contents':'read','pull_requests':'read','checks':'write'}:o.append('requiredPermissions')
+              authority=r.get('authority');required_authority={'repositoryWriteAuthorityAdded','infrastructureAuthorityAdded','authorizationAuthorityAdded','mergeAuthorityAdded','deploymentAuthorityAdded'}
+              if not isinstance(authority,dict) or set(authority)!=required_authority or any(not false_bool(authority.get(k)) for k in required_authority):o.append('authority')
+              for k in ('webBaseUrl','apiBaseUrl'):
+                  v=r.get(k);p=urlparse(v) if isinstance(v,str) else None;normalized=nh(v)
+                  if not p or p.scheme!='https' or not p.netloc or not p.hostname:o.append(k)
+                  if p and (p.username is not None or p.password is not None):o.append(k+'-userinfo')
+                  if p and (p.query or p.fragment):o.append(k+'-query-fragment')
+                  if normalized is None:o.append(k+'-hostname-normalization')
+                  if r.get('platform')=='ghes' and hosted(v):o.append(k+'-hosted-github')
+              return sorted(set(o))
+          if se(fixture) or sem(fixture):raise SystemExit('baseline fixture invalid')
+          boundary_mutations=[('supportClaim',True),('authorizedTargetObserved',True),('networkProbePerformed',True),('credentialsEmbedded',True),('appOwnership','vendor-hosted'),('installationOwnership','vendor-controlled'),('repositorySelection','all')]
+          for k,v in boundary_mutations:
+              m=copy.deepcopy(fixture);m[k]=v
+              if not se(m):raise SystemExit('schema accepted boundary mutation '+k+'='+repr(v))
+              if not sem(m):raise SystemExit('semantic gate accepted boundary mutation '+k+'='+repr(v))
+          for k in ('supportClaim','authorizedTargetObserved','networkProbePerformed','credentialsEmbedded'):
+              m=copy.deepcopy(fixture);m[k]=0
+              if not se(m) or not sem(m):raise SystemExit('numeric zero boundary accepted '+k)
+          for k in fixture['authority']:
+              m=copy.deepcopy(fixture);m['authority'][k]=0
+              if not se(m) or not sem(m):raise SystemExit('numeric zero authority accepted '+k)
+          hosted_cases=['https://github.com','https://www.github.com','https://foo.bar.github.com','https://github%2ecom','https://www%2egithub%2ecom','https://github%E3%80%82com','https://www%E3%80%82github%E3%80%82com','https://github%EF%BC%8Ecom','https://github%EF%BD%A1com']
+          for v in hosted_cases:
+              m=copy.deepcopy(fixture);m['webBaseUrl']=v
+              if not sem(m):raise SystemExit('hosted github accepted '+v)
+          api_cases=['https://api.github.com/api/v3','https://foo.api.github.com/api/v3','https://api%2egithub%2ecom/api/v3','https://api%E3%80%82github%E3%80%82com/api/v3']
+          for v in api_cases:
+              m=copy.deepcopy(fixture);m['apiBaseUrl']=v
+              if not sem(m):raise SystemExit('hosted github api accepted '+v)
+          for v in ['https://notgithub.com','https://github.com.example','https://not-github.com']:
+              if hosted(v):raise SystemExit('unrelated hostname rejected '+v)
+          normalization_failures=[('webBaseUrl','https://foo_bar.github.com'),('webBaseUrl','https://bad_label.github.enterprise.example'),('apiBaseUrl','https://foo_bar.api.github.com/api/v3'),('apiBaseUrl','https://bad_label.api.github.enterprise.example/api/v3'),('webBaseUrl','https://github.enterprise.example..'),('webBaseUrl','https://github.enterprise.example.%2e'),('apiBaseUrl','https://api.github.enterprise.example../api/v3'),('apiBaseUrl','https://api.github.enterprise.example.%2E/api/v3'),('webBaseUrl','https://github.com%E3%80%82.'),('webBaseUrl','https://github.com%EF%BC%8E.'),('webBaseUrl','https://github.com%EF%BD%A1.'),('apiBaseUrl','https://api.github.com%E3%80%82./api/v3'),('apiBaseUrl','https://api.github.com%EF%BC%8E./api/v3'),('apiBaseUrl','https://api.github.com%EF%BD%A1./api/v3')]
+          for k,v in normalization_failures:
+              m=copy.deepcopy(fixture);m[k]=v
+              if not sem(m):raise SystemExit('hostname normalization failure accepted '+k+'='+v)
+          hostless_cases=[('webBaseUrl','https://:443'),('apiBaseUrl','https://:443/api/v3'),('webBaseUrl','https:///path')]
+          for k,v in hostless_cases:
+              m=copy.deepcopy(fixture);m[k]=v
+              if not sem(m):raise SystemExit('hostless HTTPS authority accepted '+k+'='+v)
+          for k,v in [('webBaseUrl','https://github.enterprise.example bad'),('apiBaseUrl','https://api.github.enterprise.example bad/api/v3'),('webBaseUrl','not-a-uri')]:
+              m=copy.deepcopy(fixture);m[k]=v
+              if not se(m):raise SystemExit('malformed URI accepted '+k)
+          credential_cases=[('webBaseUrl','https://token@github.enterprise.example'),('apiBaseUrl','https://user:secret@api.github.enterprise.example/api/v3'),('webBaseUrl','https://github.enterprise.example/?access_token=secret'),('apiBaseUrl','https://api.github.enterprise.example/api/v3?token=secret'),('webBaseUrl','https://github.enterprise.example/#access_token=secret'),('apiBaseUrl','https://api.github.enterprise.example/api/v3#token=secret')]
+          for k,v in credential_cases:
+              m=copy.deepcopy(fixture);m[k]=v
+              if not se(m) or not sem(m):raise SystemExit('credential/query/fragment accepted '+k)
+          for k in fixture['authority']:
+              m=copy.deepcopy(fixture);m['authority'][k]=True
+              if not se(m) or not sem(m):raise SystemExit('authority mutation accepted '+k)
+          for k,v in {'metadata':'write','contents':'write','pull_requests':'write','checks':'admin'}.items():
+              m=copy.deepcopy(fixture);m['requiredPermissions'][k]=v
+              if not se(m) or not sem(m):raise SystemExit('permission mutation accepted '+k)
+          print('GHE-01 customer-controlled GitHub portability contract: PASS')
+          PY
