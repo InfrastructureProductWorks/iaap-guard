@@ -26,6 +26,8 @@ jobs:
           schema=json.loads(Path('schemas/customer-controlled-github.schema.json').read_text()); fixture=json.loads(Path('config/customer-controlled-github-ghes.synthetic.json').read_text())
           Draft202012Validator.check_schema(schema); validator=Draft202012Validator(schema,format_checker=FormatChecker())
           def se(r): return sorted(e.message for e in validator.iter_errors(r))
+          def same_typed(a,b): return type(a) is type(b) and a==b
+          def false_bool(v): return type(v) is bool and v is False
           def nh(v):
               p=urlparse(v) if isinstance(v,str) else None
               if not p or not p.hostname:return None
@@ -35,24 +37,36 @@ jobs:
               h=nh(v)
               return bool(h and (h=='github.com' or h.endswith('.github.com')))
           def sem(r):
-              o=[]; exact={'schemaVersion':'iaap-guard-customer-github/v0','platform':'ghes','appOwnership':'customer-controlled','installationOwnership':'customer-controlled','repositorySelection':'explicit','supportClaim':False,'authorizedTargetObserved':False,'networkProbePerformed':False,'credentialsEmbedded':False}
+              o=[]
+              exact={'schemaVersion':'iaap-guard-customer-github/v0','platform':'ghes','appOwnership':'customer-controlled','installationOwnership':'customer-controlled','repositorySelection':'explicit'}
               for k,v in exact.items():
-                  if r.get(k)!=v:o.append(k)
+                  if not same_typed(r.get(k),v):o.append(k)
+              for k in ('supportClaim','authorizedTargetObserved','networkProbePerformed','credentialsEmbedded'):
+                  if not false_bool(r.get(k)):o.append(k)
               if r.get('requiredPermissions')!={'metadata':'read','contents':'read','pull_requests':'read','checks':'write'}:o.append('requiredPermissions')
-              if r.get('authority')!={'repositoryWriteAuthorityAdded':False,'infrastructureAuthorityAdded':False,'authorizationAuthorityAdded':False,'mergeAuthorityAdded':False,'deploymentAuthorityAdded':False}:o.append('authority')
+              authority=r.get('authority')
+              required_authority={'repositoryWriteAuthorityAdded','infrastructureAuthorityAdded','authorizationAuthorityAdded','mergeAuthorityAdded','deploymentAuthorityAdded'}
+              if not isinstance(authority,dict) or set(authority)!=required_authority or any(not false_bool(authority.get(k)) for k in required_authority):o.append('authority')
               for k in ('webBaseUrl','apiBaseUrl'):
                   v=r.get(k);p=urlparse(v) if isinstance(v,str) else None
-                  if not p or p.scheme!='https' or not p.netloc:o.append(k)
+                  normalized=nh(v)
+                  if not p or p.scheme!='https' or not p.netloc or not p.hostname:o.append(k)
                   if p and (p.username is not None or p.password is not None):o.append(k+'-userinfo')
                   if p and (p.query or p.fragment):o.append(k+'-query-fragment')
-                  # A hostname that cannot be normalized is not a safe GHES coordinate.
-                  if p and p.hostname and nh(v) is None:o.append(k+'-hostname-normalization')
+                  if normalized is None:o.append(k+'-hostname-normalization')
                   if r.get('platform')=='ghes' and hosted(v):o.append(k+'-hosted-github')
               return sorted(set(o))
           if se(fixture) or sem(fixture):raise SystemExit('baseline fixture invalid')
           for k,v in [('supportClaim',True),('authorizedTargetObserved',True),('networkProbePerformed',True),('credentialsEmbedded',True),('appOwnership','vendor-hosted'),('installationOwnership','vendor-controlled')]:
               m=copy.deepcopy(fixture);m[k]=v
               if not se(m) or not sem(m):raise SystemExit('boundary mutation accepted '+k)
+          # Prove semantic boolean checks are type-safe and reject JSON numbers that compare equal to False in Python.
+          for k in ('supportClaim','authorizedTargetObserved','networkProbePerformed','credentialsEmbedded'):
+              m=copy.deepcopy(fixture);m[k]=0
+              if not sem(m):raise SystemExit('numeric zero accepted as false boundary '+k)
+          for k in fixture['authority']:
+              m=copy.deepcopy(fixture);m['authority'][k]=0
+              if not sem(m):raise SystemExit('numeric zero accepted as false authority '+k)
           hosted_cases=['https://github.com','https://www.github.com','https://foo.bar.github.com','https://github%2ecom','https://www%2egithub%2ecom','https://github%E3%80%82com','https://www%E3%80%82github%E3%80%82com','https://github%EF%BC%8Ecom','https://github%EF%BD%A1com']
           for v in hosted_cases:
               m=copy.deepcopy(fixture);m['webBaseUrl']=v
@@ -63,11 +77,14 @@ jobs:
               if not sem(m):raise SystemExit('hosted github api accepted '+v)
           for v in ['https://notgithub.com','https://github.com.example','https://not-github.com']:
               if hosted(v):raise SystemExit('unrelated hostname rejected '+v)
-          # IDNA/STD3 failures must fail closed, including invalid labels before a hosted suffix.
           normalization_failures=[('webBaseUrl','https://foo_bar.github.com'),('webBaseUrl','https://bad_label.github.enterprise.example'),('apiBaseUrl','https://foo_bar.api.github.com/api/v3'),('apiBaseUrl','https://bad_label.api.github.enterprise.example/api/v3')]
           for k,v in normalization_failures:
               m=copy.deepcopy(fixture);m[k]=v
               if not sem(m):raise SystemExit('hostname normalization failure accepted '+k+'='+v)
+          hostless_cases=[('webBaseUrl','https://:443'),('apiBaseUrl','https://:443/api/v3'),('webBaseUrl','https:///path')]
+          for k,v in hostless_cases:
+              m=copy.deepcopy(fixture);m[k]=v
+              if not sem(m):raise SystemExit('hostless HTTPS authority accepted '+k+'='+v)
           for k,v in [('webBaseUrl','https://github.enterprise.example bad'),('apiBaseUrl','https://api.github.enterprise.example bad/api/v3'),('webBaseUrl','not-a-uri')]:
               m=copy.deepcopy(fixture);m[k]=v
               if not se(m):raise SystemExit('malformed URI accepted '+k)
