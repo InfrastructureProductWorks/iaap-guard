@@ -50,7 +50,8 @@ jobs:
                   if not same_typed(r.get(k),v):o.append(k)
               for k in ('supportClaim','authorizedTargetObserved','networkProbePerformed','credentialsEmbedded'):
                   if not false_bool(r.get(k)):o.append(k)
-              if r.get('requiredPermissions')!={'metadata':'read','contents':'read','pull_requests':'read','checks':'write'}:o.append('requiredPermissions')
+              expected_permissions={'metadata':'read','contents':'read','pull_requests':'read','checks':'write'}
+              if not isinstance(r.get('requiredPermissions'),dict) or r.get('requiredPermissions')!=expected_permissions:o.append('requiredPermissions')
               authority=r.get('authority');required_authority={'repositoryWriteAuthorityAdded','infrastructureAuthorityAdded','authorizationAuthorityAdded','mergeAuthorityAdded','deploymentAuthorityAdded'}
               if not isinstance(authority,dict) or set(authority)!=required_authority or any(not false_bool(authority.get(k)) for k in required_authority):o.append('authority')
               for k in ('webBaseUrl','apiBaseUrl'):
@@ -104,5 +105,12 @@ jobs:
           for k,v in {'metadata':'write','contents':'write','pull_requests':'write','checks':'admin'}.items():
               m=copy.deepcopy(fixture);m['requiredPermissions'][k]=v
               if not se(m) or not sem(m):raise SystemExit('permission mutation accepted '+k)
+          # Extra nested keys must fail independently in both schema and semantic gates.
+          m=copy.deepcopy(fixture);m['authority']['untrackedAuthorityAdded']=True
+          if not se(m):raise SystemExit('schema accepted extra authority key')
+          if not sem(m):raise SystemExit('semantic gate accepted extra authority key')
+          m=copy.deepcopy(fixture);m['requiredPermissions']['administration']='write'
+          if not se(m):raise SystemExit('schema accepted extra permission key')
+          if not sem(m):raise SystemExit('semantic gate accepted extra permission key')
           print('GHE-01 customer-controlled GitHub portability contract: PASS')
           PY
