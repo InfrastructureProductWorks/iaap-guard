@@ -28,12 +28,12 @@ jobs:
           def se(r): return sorted(e.message for e in validator.iter_errors(r))
           def nh(v):
               p=urlparse(v) if isinstance(v,str) else None
-              if not p or not p.hostname:return ''
+              if not p or not p.hostname:return None
               try:return idna.encode(unquote(p.hostname).rstrip('.').casefold(),uts46=True,std3_rules=True).decode().rstrip('.').casefold()
-              except idna.IDNAError:return ''
+              except idna.IDNAError:return None
           def hosted(v):
               h=nh(v)
-              return h=='github.com' or h.endswith('.github.com')
+              return bool(h and (h=='github.com' or h.endswith('.github.com')))
           def sem(r):
               o=[]; exact={'schemaVersion':'iaap-guard-customer-github/v0','platform':'ghes','appOwnership':'customer-controlled','installationOwnership':'customer-controlled','repositorySelection':'explicit','supportClaim':False,'authorizedTargetObserved':False,'networkProbePerformed':False,'credentialsEmbedded':False}
               for k,v in exact.items():
@@ -45,6 +45,8 @@ jobs:
                   if not p or p.scheme!='https' or not p.netloc:o.append(k)
                   if p and (p.username is not None or p.password is not None):o.append(k+'-userinfo')
                   if p and (p.query or p.fragment):o.append(k+'-query-fragment')
+                  # A hostname that cannot be normalized is not a safe GHES coordinate.
+                  if p and p.hostname and nh(v) is None:o.append(k+'-hostname-normalization')
                   if r.get('platform')=='ghes' and hosted(v):o.append(k+'-hosted-github')
               return sorted(set(o))
           if se(fixture) or sem(fixture):raise SystemExit('baseline fixture invalid')
@@ -59,9 +61,13 @@ jobs:
           for v in api_cases:
               m=copy.deepcopy(fixture);m['apiBaseUrl']=v
               if not sem(m):raise SystemExit('hosted github api accepted '+v)
-          # Ensure suffix matching does not overreach.
           for v in ['https://notgithub.com','https://github.com.example','https://not-github.com']:
               if hosted(v):raise SystemExit('unrelated hostname rejected '+v)
+          # IDNA/STD3 failures must fail closed, including invalid labels before a hosted suffix.
+          normalization_failures=[('webBaseUrl','https://foo_bar.github.com'),('webBaseUrl','https://bad_label.github.enterprise.example'),('apiBaseUrl','https://foo_bar.api.github.com/api/v3'),('apiBaseUrl','https://bad_label.api.github.enterprise.example/api/v3')]
+          for k,v in normalization_failures:
+              m=copy.deepcopy(fixture);m[k]=v
+              if not sem(m):raise SystemExit('hostname normalization failure accepted '+k+'='+v)
           for k,v in [('webBaseUrl','https://github.enterprise.example bad'),('apiBaseUrl','https://api.github.enterprise.example bad/api/v3'),('webBaseUrl','not-a-uri')]:
               m=copy.deepcopy(fixture);m[k]=v
               if not se(m):raise SystemExit('malformed URI accepted '+k)
