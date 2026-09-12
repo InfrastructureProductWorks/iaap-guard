@@ -29,7 +29,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python3 -m pip install --disable-pip-version-check --no-deps jsonschema==4.25.1 attrs==25.3.0 jsonschema-specifications==2025.4.1 referencing==0.36.2 rpds-py==0.27.1
+          python3 -m pip install --disable-pip-version-check --no-deps jsonschema==4.25.1 attrs==25.3.0 jsonschema-specifications==2025.4.1 referencing==0.36.2 rpds-py==0.27.1 fqdn==1.5.1 idna==3.10 rfc3987-syntax==1.1.0
       - name: Validate bounded customer-controlled GitHub contract
         shell: bash
         run: |
@@ -40,8 +40,8 @@ jobs:
           from pathlib import Path
           from urllib.parse import urlparse
 
-          from jsonschema import Draft202012Validator
-          from jsonschema.exceptions import SchemaError, ValidationError
+          from jsonschema import Draft202012Validator, FormatChecker
+          from jsonschema.exceptions import SchemaError
 
           schema = json.loads(Path("schemas/customer-controlled-github.schema.json").read_text())
           fixture = json.loads(Path("config/customer-controlled-github-ghes.synthetic.json").read_text())
@@ -54,13 +54,11 @@ jobs:
           except SchemaError as exc:
               raise SystemExit(f"invalid Draft 2020-12 schema: {exc.message}")
 
-          validator = Draft202012Validator(schema)
+          format_checker = FormatChecker()
+          validator = Draft202012Validator(schema, format_checker=format_checker)
 
           def schema_errors(record):
-              return sorted(
-                  error.message
-                  for error in validator.iter_errors(record)
-              )
+              return sorted(error.message for error in validator.iter_errors(record))
 
           def hosted_github_hostname(value):
               if not isinstance(value, str):
@@ -121,24 +119,48 @@ jobs:
           if baseline_errors:
               raise SystemExit(f"GHE-01 synthetic fixture invalid: {baseline_errors}")
 
-          mutations = [
+          # These fields are machine-readable boundaries. Every mutation must be
+          # rejected independently by the declared schema and by the bounded
+          # semantic checks where applicable.
+          boundary_mutations = [
               ("supportClaim", True),
               ("authorizedTargetObserved", True),
               ("networkProbePerformed", True),
               ("credentialsEmbedded", True),
               ("appOwnership", "vendor-hosted"),
               ("installationOwnership", "vendor-controlled"),
+          ]
+          for key, value in boundary_mutations:
+              mutated = copy.deepcopy(fixture)
+              mutated[key] = value
+              if not schema_errors(mutated):
+                  raise SystemExit(f"schema did not reject boundary mutation: {key}={value}")
+              if not errors(mutated):
+                  raise SystemExit(f"semantic gate did not reject boundary mutation: {key}={value}")
+
+          hosted_coordinate_mutations = [
               ("webBaseUrl", "https://github.com"),
               ("webBaseUrl", "https://github.com/"),
               ("apiBaseUrl", "https://api.github.com"),
               ("apiBaseUrl", "https://api.github.com/api/v3"),
               ("apiBaseUrl", "https://API.GITHUB.COM./api/v3"),
           ]
-          for key, value in mutations:
+          for key, value in hosted_coordinate_mutations:
               mutated = copy.deepcopy(fixture)
               mutated[key] = value
-              if not schema_errors(mutated) and not errors(mutated):
-                  raise SystemExit(f"mutation was not rejected: {key}={value}")
+              if not errors(mutated):
+                  raise SystemExit(f"hosted GitHub coordinate was not rejected: {key}={value}")
+
+          malformed_uri_mutations = [
+              ("webBaseUrl", "https://github.enterprise.example bad"),
+              ("apiBaseUrl", "https://api.github.enterprise.example bad/api/v3"),
+              ("webBaseUrl", "not-a-uri"),
+          ]
+          for key, value in malformed_uri_mutations:
+              mutated = copy.deepcopy(fixture)
+              mutated[key] = value
+              if not schema_errors(mutated):
+                  raise SystemExit(f"schema URI format checker did not reject: {key}={value}")
 
           for key in fixture["authority"]:
               mutated = copy.deepcopy(fixture)
@@ -160,17 +182,6 @@ jobs:
                   raise SystemExit(f"schema did not reject permission mutation: {key}")
               if not errors(mutated):
                   raise SystemExit(f"permission mutation was not rejected: {key}")
-
-          # Prove the declared schema itself is part of the gate, rather than merely parsed.
-          mutated_schema = copy.deepcopy(schema)
-          mutated_schema["properties"]["supportClaim"] = {"const": True}
-          mutated_validator = Draft202012Validator(mutated_schema)
-          try:
-              mutated_validator.validate(fixture)
-          except ValidationError:
-              pass
-          else:
-              raise SystemExit("schema-drift mutation was not rejected")
 
           print("GHE-01 customer-controlled GitHub portability contract: PASS")
           PY
