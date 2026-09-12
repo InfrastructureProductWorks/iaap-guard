@@ -169,6 +169,12 @@ Missing required evidence produces `INCOMPLETE` rather than silent omission.
 
 See [`ADOPTION-PREREQUISITES.md`](ADOPTION-PREREQUISITES.md) for the practical adoption and troubleshooting path.
 
+## Distribution boundary
+
+The hosted GitHub App is the supported Guard distribution surface. Publication or listing of that App through GitHub Marketplace is a distribution and adoption surface only; it does not change Guard's deterministic contracts, permissions, authority, or customer-controlled update model.
+
+Marketplace presence must not be interpreted as billing, monetization, automatic upgrade consent, production qualification, compliance certification, or authorization to change a customer's selected governance semantics. Customer-impacting updates remain governed by `CUSTOMER-UPDATES.md`.
+
 ## Explicit exclusions
 
 This section is the canonical V1 product boundary. Other product, architecture, adoption,
@@ -193,7 +199,7 @@ IaaP Guard does not provide:
   historical trend storage;
 - portfolio discovery by crawling unregistered repositories;
 - automatic cross-organization V1 federation;
-- Marketplace listing, billing, or monetization;
+- Marketplace billing or monetization;
 - production-readiness claims;
 - live reconciliation validation; or
 - a claim that Terraform or TFE has no legitimate role.

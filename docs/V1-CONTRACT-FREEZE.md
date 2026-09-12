@@ -50,6 +50,14 @@ App permissions. A planning-catalog mapping must not change under
 `iaap-planning/v0.1.0`; a semantic change requires a new catalog version and migration
 guidance. Other backward-incompatible changes likewise require a new contract version.
 
+## Distribution clarification
+
+The supported hosted GitHub App may be published or listed through GitHub Marketplace as
+a discovery and installation surface without changing any frozen V1 contract. Marketplace
+listing is distribution metadata, not a new Guard authority or compatibility contract.
+Marketplace billing and monetization remain outside the V1 boundary unless separately
+specified by a future governed product change.
+
 ## Frozen authority boundary
 
 The freeze incorporates
@@ -57,9 +65,10 @@ The freeze incorporates
 organizational OKR ingestion, enterprise strategy or work management, infrastructure
 execution, customer infrastructure credentials, repository mutation, automated
 remediation or authorization, persistent customer analytics, cross-organization V1
-federation, Marketplace billing, compliance authority, or production-readiness claims.
+federation, Marketplace billing or monetization, compliance authority, or
+production-readiness claims.
 
 ## Support implication
 
-Phase 18 may package, document, tag, and support these contracts. It may not reopen them
-to broaden IaaP Guard into capabilities reserved for separate products.
+Phase 18 may package, document, tag, distribute, list, and support these contracts. It may
+not reopen them to broaden IaaP Guard into capabilities reserved for separate products.
