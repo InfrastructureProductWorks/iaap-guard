@@ -6,7 +6,7 @@ IaaP Guard is a hosted GitHub App for deterministic Infrastructure-as-a-Product 
 
 ## Use IaaP Guard
 
-Install the hosted App from [github.com/apps/iaap-guard](https://github.com/apps/iaap-guard).
+Install the hosted App from [github.com/apps/iaap-guard](https://github.com/apps/iaap-guard). The App may also be discovered and installed through its GitHub Marketplace presence. Marketplace is an adoption surface for the same bounded hosted App; it does not add billing, monetization, automatic-update consent, production qualification, or additional authority.
 
 For supported pull-request events, the App publishes the `IaaP Guard / Architecture` Check with:
 
@@ -18,7 +18,7 @@ For supported pull-request events, the App publishes the `IaaP Guard / Architect
 
 The App requires only repository metadata read, contents read, pull-request read, and checks read/write permissions. It does not request repository content-write, merge, workflow-administration, customer-cloud, provisioning, remediation, exception, or risk-acceptance authority.
 
-Read [adoption prerequisites](docs/ADOPTION-PREREQUISITES.md), [known limits](docs/KNOWN-LIMITS.md), [environment compatibility Q&A](docs/ENVIRONMENT-COMPATIBILITY-QA.md), [production readiness and operations Q&A](docs/PRODUCTION-READINESS-QA.md), and [support guidance](docs/SUPPORT.md) before the first live evaluation or production-qualification decision.
+Read [adoption prerequisites](docs/ADOPTION-PREREQUISITES.md), [customer update lifecycle](docs/CUSTOMER-UPDATES.md), [known limits](docs/KNOWN-LIMITS.md), [environment compatibility Q&A](docs/ENVIRONMENT-COMPATIBILITY-QA.md), [production readiness and operations Q&A](docs/PRODUCTION-READINESS-QA.md), and [support guidance](docs/SUPPORT.md) before the first live evaluation or production-qualification decision.
 
 For the minimum trusted cloud-foundation starting point, readiness gates, responsibilities, and Composite AI's bounded advisory role, use the [authoritative IaaP Bootstrap and Foundation Readiness package](https://github.com/InfrastructureProductWorks/ai-powered-infrastructure-as-a-product/tree/main/docs/bootstrap-foundation-readiness). It is upstream guidance and does not add foundation-readiness rules, cloud access, provisioning, approval, or risk-acceptance authority to Guard V1.
 
