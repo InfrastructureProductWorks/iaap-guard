@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "iaap-guard-customer-github/v0",
+  "platform": "ghes",
+  "webBaseUrl": "https://github.enterprise.example",
+  "apiBaseUrl": "https://github.enterprise.example/api/v3",
+  "appOwnership": "customer-controlled",
+  "installationOwnership": "customer-controlled",
+  "repositorySelection": "explicit",
+  "requiredPermissions": {
+    "metadata": "read",
+    "contents": "read",
+    "pull_requests": "read",
+    "checks": "write"
+  },
+  "supportClaim": false,
+  "authorizedTargetObserved": false,
+  "networkProbePerformed": false,
+  "credentialsEmbedded": false,
+  "authority": {
+    "repositoryWriteAuthorityAdded": false,
+    "infrastructureAuthorityAdded": false,
+    "authorizationAuthorityAdded": false,
+    "mergeAuthorityAdded": false,
+    "deploymentAuthorityAdded": false
+  }
+}
