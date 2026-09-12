@@ -32,25 +32,30 @@ jobs:
               p=urlparse(v) if isinstance(v,str) else None
               if not p or not p.hostname:return None
               decoded=unquote(p.hostname).casefold()
-              # Permit at most one conventional DNS root dot. Repeated or
-              # encoded trailing separators create an empty label and fail closed.
+              # Reject repeated ASCII separators before mapping; permit at most one root dot.
               if decoded.endswith('..'):return None
-              if decoded.endswith('.'):decoded=decoded[:-1]
-              if not decoded or decoded.endswith('.'):return None
-              try:return idna.encode(decoded,uts46=True,std3_rules=True).decode().casefold()
+              had_root=decoded.endswith('.')
+              if had_root:decoded=decoded[:-1]
+              if not decoded:return None
+              try:mapped=idna.uts46_remap(decoded,std3_rules=True,transitional=False).casefold()
               except idna.IDNAError:return None
+              # UTS #46 can turn Unicode separators into ASCII dots. A trailing dot
+              # here means the input had another separator before the optional root.
+              if not mapped or mapped.endswith('.'):return None
+              try:ascii_host=idna.encode(mapped,uts46=False,std3_rules=True).decode().casefold()
+              except idna.IDNAError:return None
+              if not ascii_host or ascii_host.endswith('.'):return None
+              return ascii_host
           def hosted(v):
-              h=nh(v)
-              return bool(h and (h=='github.com' or h.endswith('.github.com')))
+              h=nh(v);return bool(h and (h=='github.com' or h.endswith('.github.com')))
           def sem(r):
-              o=[]
-              exact={'schemaVersion':'iaap-guard-customer-github/v0','platform':'ghes','appOwnership':'customer-controlled','installationOwnership':'customer-controlled','repositorySelection':'explicit'}
+              o=[];exact={'schemaVersion':'iaap-guard-customer-github/v0','platform':'ghes','appOwnership':'customer-controlled','installationOwnership':'customer-controlled','repositorySelection':'explicit'}
               for k,v in exact.items():
                   if not same_typed(r.get(k),v):o.append(k)
               for k in ('supportClaim','authorizedTargetObserved','networkProbePerformed','credentialsEmbedded'):
                   if not false_bool(r.get(k)):o.append(k)
               if r.get('requiredPermissions')!={'metadata':'read','contents':'read','pull_requests':'read','checks':'write'}:o.append('requiredPermissions')
-              authority=r.get('authority'); required_authority={'repositoryWriteAuthorityAdded','infrastructureAuthorityAdded','authorizationAuthorityAdded','mergeAuthorityAdded','deploymentAuthorityAdded'}
+              authority=r.get('authority');required_authority={'repositoryWriteAuthorityAdded','infrastructureAuthorityAdded','authorizationAuthorityAdded','mergeAuthorityAdded','deploymentAuthorityAdded'}
               if not isinstance(authority,dict) or set(authority)!=required_authority or any(not false_bool(authority.get(k)) for k in required_authority):o.append('authority')
               for k in ('webBaseUrl','apiBaseUrl'):
                   v=r.get(k);p=urlparse(v) if isinstance(v,str) else None;normalized=nh(v)
@@ -66,12 +71,10 @@ jobs:
               if not se(m) or not sem(m):raise SystemExit('boundary mutation accepted '+k)
           for k in ('supportClaim','authorizedTargetObserved','networkProbePerformed','credentialsEmbedded'):
               m=copy.deepcopy(fixture);m[k]=0
-              if not se(m):raise SystemExit('schema accepted numeric zero boundary '+k)
-              if not sem(m):raise SystemExit('semantic gate accepted numeric zero boundary '+k)
+              if not se(m) or not sem(m):raise SystemExit('numeric zero boundary accepted '+k)
           for k in fixture['authority']:
               m=copy.deepcopy(fixture);m['authority'][k]=0
-              if not se(m):raise SystemExit('schema accepted numeric zero authority '+k)
-              if not sem(m):raise SystemExit('semantic gate accepted numeric zero authority '+k)
+              if not se(m) or not sem(m):raise SystemExit('numeric zero authority accepted '+k)
           hosted_cases=['https://github.com','https://www.github.com','https://foo.bar.github.com','https://github%2ecom','https://www%2egithub%2ecom','https://github%E3%80%82com','https://www%E3%80%82github%E3%80%82com','https://github%EF%BC%8Ecom','https://github%EF%BD%A1com']
           for v in hosted_cases:
               m=copy.deepcopy(fixture);m['webBaseUrl']=v
@@ -82,7 +85,7 @@ jobs:
               if not sem(m):raise SystemExit('hosted github api accepted '+v)
           for v in ['https://notgithub.com','https://github.com.example','https://not-github.com']:
               if hosted(v):raise SystemExit('unrelated hostname rejected '+v)
-          normalization_failures=[('webBaseUrl','https://foo_bar.github.com'),('webBaseUrl','https://bad_label.github.enterprise.example'),('apiBaseUrl','https://foo_bar.api.github.com/api/v3'),('apiBaseUrl','https://bad_label.api.github.enterprise.example/api/v3'),('webBaseUrl','https://github.enterprise.example..'),('webBaseUrl','https://github.enterprise.example.%2e'),('apiBaseUrl','https://api.github.enterprise.example../api/v3'),('apiBaseUrl','https://api.github.enterprise.example.%2E/api/v3')]
+          normalization_failures=[('webBaseUrl','https://foo_bar.github.com'),('webBaseUrl','https://bad_label.github.enterprise.example'),('apiBaseUrl','https://foo_bar.api.github.com/api/v3'),('apiBaseUrl','https://bad_label.api.github.enterprise.example/api/v3'),('webBaseUrl','https://github.enterprise.example..'),('webBaseUrl','https://github.enterprise.example.%2e'),('apiBaseUrl','https://api.github.enterprise.example../api/v3'),('apiBaseUrl','https://api.github.enterprise.example.%2E/api/v3'),('webBaseUrl','https://github.com%E3%80%82.'),('webBaseUrl','https://github.com%EF%BC%8E.'),('webBaseUrl','https://github.com%EF%BD%A1.'),('apiBaseUrl','https://api.github.com%E3%80%82./api/v3'),('apiBaseUrl','https://api.github.com%EF%BC%8E./api/v3'),('apiBaseUrl','https://api.github.com%EF%BD%A1./api/v3')]
           for k,v in normalization_failures:
               m=copy.deepcopy(fixture);m[k]=v
               if not sem(m):raise SystemExit('hostname normalization failure accepted '+k+'='+v)
@@ -96,8 +99,7 @@ jobs:
           credential_cases=[('webBaseUrl','https://token@github.enterprise.example'),('apiBaseUrl','https://user:secret@api.github.enterprise.example/api/v3'),('webBaseUrl','https://github.enterprise.example/?access_token=secret'),('apiBaseUrl','https://api.github.enterprise.example/api/v3?token=secret'),('webBaseUrl','https://github.enterprise.example/#access_token=secret'),('apiBaseUrl','https://api.github.enterprise.example/api/v3#token=secret')]
           for k,v in credential_cases:
               m=copy.deepcopy(fixture);m[k]=v
-              if not se(m):raise SystemExit('schema accepted credential/query/fragment '+k)
-              if not sem(m):raise SystemExit('semantic gate accepted credential/query/fragment '+k)
+              if not se(m) or not sem(m):raise SystemExit('credential/query/fragment accepted '+k)
           for k in fixture['authority']:
               m=copy.deepcopy(fixture);m['authority'][k]=True
               if not se(m) or not sem(m):raise SystemExit('authority mutation accepted '+k)
