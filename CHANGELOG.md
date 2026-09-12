@@ -1,5 +1,15 @@
 # Changelog
 
+## Marketplace distribution governance — 2026-09-12
+
+- reconcile the product contract with the hosted App's GitHub Marketplace presence;
+- define Marketplace as a discovery and installation surface for the existing bounded hosted App;
+- retain Marketplace billing and monetization outside the V1 product boundary;
+- preserve the frozen V1 contracts, GitHub App permissions, customer-controlled update lifecycle, and authority boundary; and
+- avoid implying automatic upgrade consent, production qualification, compliance certification, or infrastructure authority from Marketplace presence.
+
+This documentation reconciliation changes no Guard rule, score, schema, GitHub App permission, runtime, deployment, licensing term, customer-selected governance semantics, or infrastructure authority.
+
 ## 1.0.2 — maintenance candidate
 
 - remove the literal nonpublic-producer repository coordinate and live cloud-account
@@ -36,9 +46,11 @@ authority.
 
 - moved the supported GitHub App runtime to the protected private core;
 - retained successful identity, plan, deployment, health, Check Run parity, alarm, and rollback evidence;
-- retired the public composite Action and removed its root manifest to prevent Marketplace classification;
+- retired the public composite Action and removed its root manifest to prevent Marketplace classification as a GitHub Action;
 - reduced the current public branch to product documentation, contracts, schemas, evidence, security, and support material; and
 - preserved Git history and the existing public license without modification.
+
+The retired composite Action's Marketplace classification is distinct from distribution of the hosted GitHub App through GitHub Marketplace.
 
 ## 1.0.0 — 2026-08-15
 
@@ -62,5 +74,5 @@ First bounded V1 release of IaaP Guard.
 This release does not add work management, organizational OKR ingestion, enterprise
 strategy, infrastructure execution, customer infrastructure credentials, repository
 mutation, automated remediation or authorization, persistent SaaS analytics,
-cross-organization V1 federation, Marketplace billing, compliance authority, or
-production-readiness claims.
+cross-organization V1 federation, Marketplace billing or monetization, compliance
+authority, or production-readiness claims.
