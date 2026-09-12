@@ -43,6 +43,10 @@ universally qualified. Their expected behavior and required adoption evidence ar
 in [Environment compatibility Q&A](ENVIRONMENT-COMPATIBILITY-QA.md) and
 [Production readiness and operations Q&A](PRODUCTION-READINESS-QA.md).
 
+GitHub Marketplace may serve as a discovery and installation surface for the hosted App.
+Marketplace presence does not imply Marketplace billing, monetization, production
+qualification, compliance certification, or consent to customer-impacting Guard updates.
+
 ## Explicit exclusions
 
 The complete authoritative exclusion list is
@@ -50,5 +54,5 @@ The complete authoritative exclusion list is
 does not ingest organizational OKRs, manage enterprise strategy or team work, execute
 infrastructure, hold customer infrastructure credentials, mutate repositories,
 automatically remediate or authorize, provide persistent customer analytics, federate
-automatically across organizations, bill through Marketplace, certify compliance, or
-claim production readiness.
+automatically across organizations, bill or monetize through Marketplace, certify
+compliance, or claim production readiness.
