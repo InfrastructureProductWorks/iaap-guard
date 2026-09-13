@@ -16,7 +16,7 @@ permissions:
 
 jobs:
   validate:
-    uses: InfrastructureProductWorks/.github/.github/workflows/portfolio-product-status.yml@2fde9dbe5869f9ea65a24a76f6bc32ed7be0518f
+    uses: InfrastructureProductWorks/.github/.github/workflows/portfolio-product-status.yml@1935aed6c786022462b267e585910e6d97a75536
     with:
       expected_id: guard
       expected_repository: InfrastructureProductWorks/iaap-guard
