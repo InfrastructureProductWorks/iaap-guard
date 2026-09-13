@@ -24,6 +24,8 @@ jobs:
           from urllib.parse import unquote,urlparse
           from jsonschema import Draft202012Validator,FormatChecker
           schema=json.loads(Path('schemas/customer-controlled-github.schema.json').read_text()); fixture=json.loads(Path('config/customer-controlled-github-ghes.synthetic.json').read_text())
+          expected_dialect='https://json-schema.org/draft/2020-12/schema'
+          if schema.get('$schema')!=expected_dialect:raise SystemExit('JSON Schema dialect changed')
           Draft202012Validator.check_schema(schema); validator=Draft202012Validator(schema,format_checker=FormatChecker())
           def se(r): return sorted(e.message for e in validator.iter_errors(r))
           def same_typed(a,b): return type(a) is type(b) and a==b
@@ -33,29 +35,14 @@ jobs:
           required_authority={'repositoryWriteAuthorityAdded','infrastructureAuthorityAdded','authorizationAuthorityAdded','mergeAuthorityAdded','deploymentAuthorityAdded'}
           expected_authority_schemas={k:{'const':False} for k in required_authority}
           expected_required={'schemaVersion','platform','webBaseUrl','apiBaseUrl','appOwnership','installationOwnership','repositorySelection','requiredPermissions','supportClaim','authorizedTargetObserved','networkProbePerformed','credentialsEmbedded','authority'}
-          expected_scalar_schemas={
-            'schemaVersion':{'const':'iaap-guard-customer-github/v0'},
-            'platform':{'enum':['github.com','ghes']},
-            'webBaseUrl':{'type':'string','format':'uri','pattern':'^https://[^@/?#]+/?$'},
-            'apiBaseUrl':{'type':'string','format':'uri','pattern':'^https://[^@/?#]+(?:/api/v3)?/?$'},
-            'appOwnership':{'enum':['vendor-hosted','customer-controlled']},
-            'installationOwnership':{'const':'customer-controlled'},
-            'repositorySelection':{'const':'explicit'},
-            'supportClaim':{'const':False},
-            'authorizedTargetObserved':{'const':False},
-            'networkProbePerformed':{'const':False},
-            'credentialsEmbedded':{'const':False},
-          }
+          expected_scalar_schemas={'schemaVersion':{'const':'iaap-guard-customer-github/v0'},'platform':{'enum':['github.com','ghes']},'webBaseUrl':{'type':'string','format':'uri','pattern':'^https://[^@/?#]+/?$'},'apiBaseUrl':{'type':'string','format':'uri','pattern':'^https://[^@/?#]+(?:/api/v3)?/?$'},'appOwnership':{'enum':['vendor-hosted','customer-controlled']},'installationOwnership':{'const':'customer-controlled'},'repositorySelection':{'const':'explicit'},'supportClaim':{'const':False},'authorizedTargetObserved':{'const':False},'networkProbePerformed':{'const':False},'credentialsEmbedded':{'const':False}}
           if schema.get('type')!='object' or schema.get('additionalProperties') is not False or set(schema.get('required',[]))!=expected_required or set(schema.get('properties',{}))!=expected_required:raise SystemExit('top-level schema shape widened')
           for k,v in expected_scalar_schemas.items():
               if schema['properties'].get(k)!=v:raise SystemExit('top-level property schema widened: '+k)
-          perm_schema=schema['properties']['requiredPermissions']; auth_schema=schema['properties']['authority']
+          perm_schema=schema['properties']['requiredPermissions'];auth_schema=schema['properties']['authority']
           if perm_schema.get('type')!='object' or perm_schema.get('additionalProperties') is not False or set(perm_schema.get('required',[]))!=set(expected_permissions) or perm_schema.get('properties')!=expected_permission_schemas:raise SystemExit('requiredPermissions schema widened')
           if auth_schema.get('type')!='object' or auth_schema.get('additionalProperties') is not False or set(auth_schema.get('required',[]))!=required_authority or auth_schema.get('properties')!=expected_authority_schemas:raise SystemExit('authority schema widened')
-          expected_allof=[
-            {'if':{'properties':{'platform':{'const':'github.com'}}},'then':{'properties':{'webBaseUrl':{'const':'https://github.com'},'apiBaseUrl':{'const':'https://api.github.com'}}}},
-            {'if':{'properties':{'platform':{'const':'ghes'}}},'then':{'properties':{'appOwnership':{'const':'customer-controlled'},'webBaseUrl':{'pattern':'^https://[^@/?#]+/?$'},'apiBaseUrl':{'pattern':'^https://[^@/?#]+/api/v3/?$'}}}}
-          ]
+          expected_allof=[{'if':{'properties':{'platform':{'const':'github.com'}}},'then':{'properties':{'webBaseUrl':{'const':'https://github.com'},'apiBaseUrl':{'const':'https://api.github.com'}}}},{'if':{'properties':{'platform':{'const':'ghes'}}},'then':{'properties':{'appOwnership':{'const':'customer-controlled'},'webBaseUrl':{'pattern':'^https://[^@/?#]+/?$'},'apiBaseUrl':{'pattern':'^https://[^@/?#]+/api/v3/?$'}}}}]
           if schema.get('allOf')!=expected_allof:raise SystemExit('platform conditional schema widened')
           def nh(v):
               p=urlparse(v) if isinstance(v,str) else None
