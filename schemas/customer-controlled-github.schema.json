@@ -22,6 +22,6 @@
   },
   "allOf": [
     {"if": {"properties": {"platform": {"const": "github.com"}}}, "then": {"properties": {"appOwnership": {"const": "vendor-hosted"}, "webBaseUrl": {"const": "https://github.com"}, "apiBaseUrl": {"const": "https://api.github.com"}}}},
-    {"if": {"properties": {"platform": {"const": "ghes"}}}, "then": {"properties": {"appOwnership": {"const": "customer-controlled"}, "webBaseUrl": {"pattern": "^https://(?=[a-z0-9.-]{1,253}$)(?=[a-z0-9.-]*[a-z])(?!(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)*github\\.com$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)*[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$"}, "apiBaseUrl": {"pattern": "^https://(?=[a-z0-9.-]{1,253}/api/v3$)(?=[a-z0-9.-]*[a-z][a-z0-9.-]*/api/v3$)(?!(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)*github\\.com/api/v3$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)*[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?/api/v3$"}}}}
+    {"if": {"properties": {"platform": {"const": "ghes"}}}, "then": {"properties": {"appOwnership": {"const": "customer-controlled"}, "webBaseUrl": {"pattern": "^https://(?=[a-z0-9.-]{3,253}$)(?=[a-z0-9.-]*[a-z])(?!(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)*github\\.com$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$"}, "apiBaseUrl": {"pattern": "^https://(?=[a-z0-9.-]{3,253}/api/v3$)(?=[a-z0-9.-]*[a-z][a-z0-9.-]*/api/v3$)(?!(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)*github\\.com/api/v3$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?/api/v3$"}}}}
   ]
 }
