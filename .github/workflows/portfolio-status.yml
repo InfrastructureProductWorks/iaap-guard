@@ -1,0 +1,23 @@
+name: Portfolio Status
+
+on:
+  pull_request:
+    paths:
+      - '.portfolio/status.json'
+      - '.github/workflows/portfolio-status.yml'
+  push:
+    branches: [main]
+    paths:
+      - '.portfolio/status.json'
+      - '.github/workflows/portfolio-status.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    uses: InfrastructureProductWorks/.github/.github/workflows/portfolio-product-status.yml@778b68b074924ef4bf18b760984b87ca56d3d69a
+    with:
+      expected_id: guard
+      expected_repository: InfrastructureProductWorks/iaap-guard
+      expected_versions_json: '{"product":"1.0.2"}'
