@@ -86,7 +86,7 @@ The customer-controlled/GHES contract is additive. It must not be interpreted as
 
 ## Validation
 
-`.github/workflows/ghe01-portability-contract.yml` performs deterministic static checks against the synthetic contract. It locks the complete published schema to the approved bounded contract, validates both platform states, independently checks semantic invariants, and executes positive and negative cases that must remain deterministic and fail closed.
+`.github/workflows/ghe01-portability-contract.yml` performs deterministic static checks against the synthetic contract. It locks the complete published schema and the synthetic GHES fixture to their approved canonical records, validates both platform states, independently checks semantic invariants, executes positive and negative cases that must remain deterministic and fail closed, and cross-checks GHE-01 repository permissions against `config/github-app-v0.json`. Changes to that current App contract also trigger the GHE-01 validation workflow.
 
 The workflow may retrieve its pinned validation dependencies from the normal GitHub Actions execution environment. It does not probe a customer or GHES target, use customer credentials or data, provision infrastructure, execute Crossplane, approve or merge changes, or gain deployment authority.
 
