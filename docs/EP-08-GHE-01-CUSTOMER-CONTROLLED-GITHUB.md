@@ -14,19 +14,43 @@ The currently supported path remains the hosted IaaP Guard GitHub App on GitHub.
 
 The machine-readable contract is `schemas/customer-controlled-github.schema.json`. The synthetic GHES fixture is `config/customer-controlled-github-ghes.synthetic.json`.
 
+The contract represents exactly two bounded platform states:
+
+1. `github.com`: the preserved vendor-hosted Guard App baseline, with customer-controlled installation and explicit repository selection; and
+2. `ghes`: a synthetic customer-controlled App and installation contract for a future authorized GHES target.
+
 The contract requires:
 
 - an explicit GitHub platform selection (`github.com` or `ghes`);
-- HTTPS web and API base URLs rather than hard-coded GitHub.com runtime coordinates;
+- canonical HTTPS web and API coordinates;
 - customer ownership of the installation;
 - customer ownership of the GitHub App for GHES;
+- vendor-hosted App ownership for the preserved GitHub.com baseline;
 - explicit repository selection;
 - the same bounded repository permissions used by the current Guard App: metadata read, contents read, pull-request read, and checks write;
 - no embedded credentials;
-- no network probing in this evidence tranche;
-- `supportClaim: false`;
+- no customer/GHES target network probing in this evidence tranche;
+- `supportClaim: false` for this synthetic portability record;
 - `authorizedTargetObserved: false`; and
 - no added repository-write, infrastructure, authorization, merge, or deployment authority.
+
+`supportClaim: false` is scoped to this synthetic customer-controlled portability record. It does not revoke or contradict the separately accepted hosted GitHub.com Guard App support path.
+
+## Canonical GHES coordinate profile
+
+GHE-01 v0 intentionally uses a narrow coordinate representation so the published schema and deterministic validator have one meaning rather than several equivalent URI spellings.
+
+For `platform: ghes`:
+
+- `webBaseUrl` is exactly `https://<fqdn>`;
+- `apiBaseUrl` is exactly `https://<fqdn>/api/v3`;
+- hostnames are lowercase ASCII DNS names with at least two labels;
+- each DNS label is 1–63 characters and the hostname is at most 253 characters;
+- internationalized names must be supplied in their lowercase ASCII A-label/punycode representation;
+- literal IPv4/IPv6 addresses, single-label names, explicit ports, trailing root dots, trailing slashes, userinfo, query strings, fragments, semicolon parameters, percent-encoded hostname aliases, and Unicode separator aliases are outside this v0 evidence contract; and
+- `github.com` and its true subdomains are excluded from GHES coordinates.
+
+The web and API hostnames are validated independently and are not required to be identical. This contract does not infer or claim a particular reverse-proxy, split-DNS, or API topology because no authorized GHES target has been observed. The exclusions above are evidence-scope boundaries, not claims that GHES itself can never be configured differently.
 
 ## Customer custody model
 
@@ -57,9 +81,9 @@ The customer-controlled/GHES contract is additive. It must not be interpreted as
 
 ## Validation
 
-`.github/workflows/ghe01-portability-contract.yml` performs deterministic static checks against the synthetic contract. It verifies the customer-custody and no-authority invariants and executes negative mutations that must fail closed.
+`.github/workflows/ghe01-portability-contract.yml` performs deterministic static checks against the synthetic contract. It locks the complete published schema to the approved bounded contract, validates both platform states, independently checks semantic invariants, and executes positive and negative cases that must remain deterministic and fail closed.
 
-No credentials, live network calls, customer data, infrastructure provisioning, Crossplane execution, approval authority, or deployment authority are introduced by this tranche.
+The workflow may retrieve its pinned validation dependencies from the normal GitHub Actions execution environment. It does not probe a customer or GHES target, use customer credentials or data, provision infrastructure, execute Crossplane, approve or merge changes, or gain deployment authority.
 
 ## Exit from this tranche
 
