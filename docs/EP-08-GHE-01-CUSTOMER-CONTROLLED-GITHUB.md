@@ -8,7 +8,7 @@
 
 This tranche separates IaaP Guard's customer-controlled GitHub portability contract from the currently supported hosted GitHub.com App path. It does not rewrite or weaken the accepted GitHub.com distribution evidence.
 
-The currently supported path remains the hosted IaaP Guard GitHub App on GitHub.com. This document defines a synthetic portability boundary for a future customer-controlled GitHub App deployment, including GitHub Enterprise Server, without claiming that a live GHES target has been validated.
+The currently supported path remains the hosted IaaP Guard GitHub App on GitHub.com. This document defines a synthetic portability boundary for a future customer-controlled GitHub App deployment on GitHub Enterprise Server (GHES), without claiming that a live GHES target has been validated.
 
 ## Contract
 
@@ -17,7 +17,9 @@ The machine-readable contract is `schemas/customer-controlled-github.schema.json
 The contract represents exactly two bounded platform states:
 
 1. `github.com`: the preserved vendor-hosted Guard App baseline, with customer-controlled installation and explicit repository selection; and
-2. `ghes`: a synthetic customer-controlled App and installation contract for a future authorized GHES target.
+2. `ghes`: a synthetic customer-controlled App and installation contract for a future authorized GitHub Enterprise Server target.
+
+GitHub Enterprise Cloud with data residency on `GHE.com` is a hosted cloud platform and is not represented by the `ghes` state in this v0 contract. `ghe.com` and its true subdomains are therefore excluded from GHES coordinates along with `github.com` and its true subdomains.
 
 The contract requires:
 
@@ -50,7 +52,7 @@ For `platform: ghes`:
 - each DNS label is 1–63 characters and the hostname is at most 253 characters;
 - internationalized/punycode hostnames are outside this v0 evidence contract because IDNA equivalence has not been validated;
 - literal IPv4/IPv6 addresses and legacy numeric address spellings, single-label names, explicit ports, trailing root dots, trailing slashes, userinfo, query strings, fragments, semicolon parameters, percent-encoded hostname aliases, Unicode separator aliases, and trailing control characters are outside this v0 evidence contract; and
-- `github.com` and its true subdomains are excluded from GHES coordinates.
+- hosted GitHub domains (`github.com`, `ghe.com`, and their true subdomains) are excluded from GHES coordinates.
 
 The web and API hostnames are validated independently and are not required to be identical. This contract does not infer or claim a particular reverse-proxy, split-DNS, CNAME/resolved-destination equivalence, or API topology because no authorized GHES target has been observed or probed. The exclusions above are evidence-scope boundaries, not claims that GHES itself can never be configured differently.
 
