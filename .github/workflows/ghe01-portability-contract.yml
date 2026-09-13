@@ -27,8 +27,9 @@ jobs:
           schema=json.loads(Path('schemas/customer-controlled-github.schema.json').read_text())
           fixture=json.loads(Path('config/customer-controlled-github-ghes.synthetic.json').read_text())
           label=r'[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?'
-          ghes_web=rf'^https://(?=[a-z0-9.-]{{3,253}}(?![\s\S]))(?=[a-z0-9.-]*[a-z])(?!(?:[a-z0-9-]+\.)*xn--)(?!(?:(?:0x[0-9a-f]+|[0-9]+)\.){{1,3}}(?:0x[0-9a-f]+|[0-9]+)(?![\s\S]))(?!(?:{label}\.)*github\.com(?![\s\S]))(?:{label}\.)+{label}(?![\s\S])'
-          ghes_api=rf'^https://(?=[a-z0-9.-]{{3,253}}/api/v3(?![\s\S]))(?=[a-z0-9.-]*[a-z][a-z0-9.-]*/api/v3)(?!(?:[a-z0-9-]+\.)*xn--)(?!(?:(?:0x[0-9a-f]+|[0-9]+)\.){{1,3}}(?:0x[0-9a-f]+|[0-9]+)/api/v3(?![\s\S]))(?!(?:{label}\.)*github\.com/api/v3(?![\s\S]))(?:{label}\.)+{label}/api/v3(?![\s\S])'
+          hosted_suffix=r'(?:github\.com|ghe\.com)'
+          ghes_web=rf'^https://(?=[a-z0-9.-]{{3,253}}(?![\s\S]))(?=[a-z0-9.-]*[a-z])(?!(?:[a-z0-9-]+\.)*xn--)(?!(?:(?:0x[0-9a-f]+|[0-9]+)\.){{1,3}}(?:0x[0-9a-f]+|[0-9]+)(?![\s\S]))(?!(?:{label}\.)*{hosted_suffix}(?![\s\S]))(?:{label}\.)+{label}(?![\s\S])'
+          ghes_api=rf'^https://(?=[a-z0-9.-]{{3,253}}/api/v3(?![\s\S]))(?=[a-z0-9.-]*[a-z][a-z0-9.-]*/api/v3)(?!(?:[a-z0-9-]+\.)*xn--)(?!(?:(?:0x[0-9a-f]+|[0-9]+)\.){{1,3}}(?:0x[0-9a-f]+|[0-9]+)/api/v3(?![\s\S]))(?!(?:{label}\.)*{hosted_suffix}/api/v3(?![\s\S]))(?:{label}\.)+{label}/api/v3(?![\s\S])'
           expected_schema={
             '$schema':'https://json-schema.org/draft/2020-12/schema',
             '$id':'https://infrastructureproductworks.github.io/iaap-guard/schemas/customer-controlled-github.schema.json',
@@ -62,6 +63,7 @@ jobs:
           label_re=re.compile(r'^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$')
           legacy_numeric_re=re.compile(r'^(?:(?:0x[0-9a-f]+|[0-9]+)\.){1,3}(?:0x[0-9a-f]+|[0-9]+)$')
           def false_bool(v):return type(v) is bool and v is False
+          def hosted_cloud(host):return host in ('github.com','ghe.com') or host.endswith('.github.com') or host.endswith('.ghe.com')
           def canonical_ghes(v,api=False):
             if not isinstance(v,str):return False
             try:
@@ -74,8 +76,7 @@ jobs:
             if host!=host.lower() or len(host)<3 or len(host)>253 or '.' not in host or not any('a'<=c<='z' for c in host):return False
             labels=host.split('.')
             if any(not label_re.fullmatch(x) for x in labels):return False
-            if any(x.startswith('xn--') for x in labels) or legacy_numeric_re.fullmatch(host):return False
-            if host=='github.com' or host.endswith('.github.com'):return False
+            if any(x.startswith('xn--') for x in labels) or legacy_numeric_re.fullmatch(host) or hosted_cloud(host):return False
             path='/api/v3' if api else ''
             if p.path!=path:return False
             return v==f'https://{host}{path}'
@@ -110,7 +111,7 @@ jobs:
 
           must_accept(fixture,'baseline GHES fixture')
           hosted=copy.deepcopy(fixture);hosted.update({'platform':'github.com','appOwnership':'vendor-hosted','webBaseUrl':'https://github.com','apiBaseUrl':'https://api.github.com'})
-          must_accept(hosted,'preserved hosted GitHub.com baseline')
+          must_accept(hosted,'hosted GitHub.com coordinate baseline in synthetic record')
 
           for k in expected_keys:
             m=copy.deepcopy(fixture);m.pop(k);must_reject(m,'missing top-level '+k)
@@ -131,8 +132,8 @@ jobs:
             m=copy.deepcopy(fixture);m['authority'].pop(k);must_reject(m,'missing authority '+k)
           m=copy.deepcopy(fixture);m['authority']['unexpectedAuthority']=False;must_reject(m,'extra authority key')
 
-          bad_web=['https://github.com','https://www.github.com','https://foo.bar.github.com','https://GitHub.com','https://API.GitHub.com','https://github.com.','https://github%2ecom','https://github%E3%80%82com','https://github.enterprise.example/','https://github.enterprise.example:443','https://github.enterprise.example:8443','https://127.0.0.1','https://[::1]','https://0x7f.0.0.1','https://0x7f.0x0.0x0.0x1','https://intranet','https://xn--bcher-kva.example','https://foo_bar.example','https://-bad.example','https://bad-.example','https://bad..example','http://github.enterprise.example','https://marker@github.enterprise.example','https://github.enterprise.example?marker=value','https://github.enterprise.example#marker','https://github.enterprise.example/;marker=value','https://github.enterprise.example\n','https://github.enterprise.example\r']
-          bad_api=['https://api.github.com/api/v3','https://foo.github.com/api/v3','https://API.GitHub.com/api/v3','https://api.github.com./api/v3','https://api%2egithub%2ecom/api/v3','https://api%E3%80%82github%E3%80%82com/api/v3','https://github.enterprise.example/api/v3/','https://github.enterprise.example:443/api/v3','https://127.0.0.1/api/v3','https://[::1]/api/v3','https://0x7f.0.0.1/api/v3','https://intranet/api/v3','https://xn--bcher-kva.example/api/v3','https://github.enterprise.example/api/v4','https://github.enterprise.example/anything','http://github.enterprise.example/api/v3','https://marker@github.enterprise.example/api/v3','https://github.enterprise.example/api/v3?marker=value','https://github.enterprise.example/api/v3#marker','https://github.enterprise.example/api/v3;marker=value','https://github.enterprise.example/api/v3\n']
+          bad_web=['https://github.com','https://www.github.com','https://foo.bar.github.com','https://ghe.com','https://octocorp.ghe.com','https://api.octocorp.ghe.com','https://GitHub.com','https://API.GitHub.com','https://github.com.','https://github%2ecom','https://github%E3%80%82com','https://github.enterprise.example/','https://github.enterprise.example:443','https://github.enterprise.example:8443','https://127.0.0.1','https://[::1]','https://0x7f.0.0.1','https://0x7f.0x0.0x0.0x1','https://intranet','https://xn--bcher-kva.example','https://foo_bar.example','https://-bad.example','https://bad-.example','https://bad..example','http://github.enterprise.example','https://marker@github.enterprise.example','https://github.enterprise.example?marker=value','https://github.enterprise.example#marker','https://github.enterprise.example/;marker=value','https://github.enterprise.example\n','https://github.enterprise.example\r']
+          bad_api=['https://api.github.com/api/v3','https://foo.github.com/api/v3','https://ghe.com/api/v3','https://api.octocorp.ghe.com/api/v3','https://API.GitHub.com/api/v3','https://api.github.com./api/v3','https://api%2egithub%2ecom/api/v3','https://api%E3%80%82github%E3%80%82com/api/v3','https://github.enterprise.example/api/v3/','https://github.enterprise.example:443/api/v3','https://127.0.0.1/api/v3','https://[::1]/api/v3','https://0x7f.0.0.1/api/v3','https://intranet/api/v3','https://xn--bcher-kva.example/api/v3','https://github.enterprise.example/api/v4','https://github.enterprise.example/anything','http://github.enterprise.example/api/v3','https://marker@github.enterprise.example/api/v3','https://github.enterprise.example/api/v3?marker=value','https://github.enterprise.example/api/v3#marker','https://github.enterprise.example/api/v3;marker=value','https://github.enterprise.example/api/v3\n']
           long_label='a'*64+'.example'
           long_host='.'.join(['a'*63]*4)+'.example'
           bad_web+=['https://'+long_label,'https://'+long_host]
@@ -142,7 +143,7 @@ jobs:
           for v in bad_api:
             m=copy.deepcopy(fixture);m['apiBaseUrl']=v;must_reject(m,'bad GHES API coordinate '+repr(v))
 
-          valid_controls=[('webBaseUrl','https://github.enterprise.example'),('webBaseUrl','https://notgithub.com'),('webBaseUrl','https://github.com.example'),('webBaseUrl','https://git-hub.enterprise.example'),('apiBaseUrl','https://api.github.enterprise.example/api/v3'),('apiBaseUrl','https://notgithub.com/api/v3'),('apiBaseUrl','https://github.com.example/api/v3')]
+          valid_controls=[('webBaseUrl','https://github.enterprise.example'),('webBaseUrl','https://notgithub.com'),('webBaseUrl','https://github.com.example'),('webBaseUrl','https://ghe.com.example'),('webBaseUrl','https://myghe.com'),('webBaseUrl','https://git-hub.enterprise.example'),('apiBaseUrl','https://api.github.enterprise.example/api/v3'),('apiBaseUrl','https://notgithub.com/api/v3'),('apiBaseUrl','https://github.com.example/api/v3'),('apiBaseUrl','https://ghe.com.example/api/v3')]
           for k,v in valid_controls:
             m=copy.deepcopy(fixture);m[k]=v;must_accept(m,'valid normalized '+k+' '+v)
 
