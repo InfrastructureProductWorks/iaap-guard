@@ -32,9 +32,31 @@ jobs:
           expected_permission_schemas={k:{'const':v} for k,v in expected_permissions.items()}
           required_authority={'repositoryWriteAuthorityAdded','infrastructureAuthorityAdded','authorizationAuthorityAdded','mergeAuthorityAdded','deploymentAuthorityAdded'}
           expected_authority_schemas={k:{'const':False} for k in required_authority}
+          expected_required={'schemaVersion','platform','webBaseUrl','apiBaseUrl','appOwnership','installationOwnership','repositorySelection','requiredPermissions','supportClaim','authorizedTargetObserved','networkProbePerformed','credentialsEmbedded','authority'}
+          expected_scalar_schemas={
+            'schemaVersion':{'const':'iaap-guard-customer-github/v0'},
+            'platform':{'enum':['github.com','ghes']},
+            'webBaseUrl':{'type':'string','format':'uri','pattern':'^https://[^@/?#]+/?$'},
+            'apiBaseUrl':{'type':'string','format':'uri','pattern':'^https://[^@/?#]+(?:/api/v3)?/?$'},
+            'appOwnership':{'enum':['vendor-hosted','customer-controlled']},
+            'installationOwnership':{'const':'customer-controlled'},
+            'repositorySelection':{'const':'explicit'},
+            'supportClaim':{'const':False},
+            'authorizedTargetObserved':{'const':False},
+            'networkProbePerformed':{'const':False},
+            'credentialsEmbedded':{'const':False},
+          }
+          if schema.get('type')!='object' or schema.get('additionalProperties') is not False or set(schema.get('required',[]))!=expected_required or set(schema.get('properties',{}))!=expected_required:raise SystemExit('top-level schema shape widened')
+          for k,v in expected_scalar_schemas.items():
+              if schema['properties'].get(k)!=v:raise SystemExit('top-level property schema widened: '+k)
           perm_schema=schema['properties']['requiredPermissions']; auth_schema=schema['properties']['authority']
           if perm_schema.get('type')!='object' or perm_schema.get('additionalProperties') is not False or set(perm_schema.get('required',[]))!=set(expected_permissions) or perm_schema.get('properties')!=expected_permission_schemas:raise SystemExit('requiredPermissions schema widened')
           if auth_schema.get('type')!='object' or auth_schema.get('additionalProperties') is not False or set(auth_schema.get('required',[]))!=required_authority or auth_schema.get('properties')!=expected_authority_schemas:raise SystemExit('authority schema widened')
+          expected_allof=[
+            {'if':{'properties':{'platform':{'const':'github.com'}}},'then':{'properties':{'webBaseUrl':{'const':'https://github.com'},'apiBaseUrl':{'const':'https://api.github.com'}}}},
+            {'if':{'properties':{'platform':{'const':'ghes'}}},'then':{'properties':{'appOwnership':{'const':'customer-controlled'},'webBaseUrl':{'pattern':'^https://[^@/?#]+/?$'},'apiBaseUrl':{'pattern':'^https://[^@/?#]+/api/v3/?$'}}}}
+          ]
+          if schema.get('allOf')!=expected_allof:raise SystemExit('platform conditional schema widened')
           def nh(v):
               p=urlparse(v) if isinstance(v,str) else None
               if not p or not p.hostname:return None
@@ -107,8 +129,7 @@ jobs:
           credential_cases=[('webBaseUrl','https://token@github.enterprise.example'),('apiBaseUrl','https://user:secret@api.github.enterprise.example/api/v3'),('webBaseUrl','https://github.enterprise.example/?access_token=secret'),('apiBaseUrl','https://api.github.enterprise.example/api/v3?token=secret'),('webBaseUrl','https://github.enterprise.example/#access_token=secret'),('apiBaseUrl','https://api.github.enterprise.example/api/v3#token=secret'),('webBaseUrl','https://github.enterprise.example/access_token=secret'),('apiBaseUrl','https://api.github.enterprise.example/api/v3/access_token=secret'),('webBaseUrl','https://github.enterprise.example/;access_token=secret'),('apiBaseUrl','https://api.github.enterprise.example/api/v3;access_token=secret')]
           for k,v in credential_cases:
               m=copy.deepcopy(fixture);m[k]=v
-              if not se(m):raise SystemExit('schema accepted credential/path/param mutation '+k)
-              if not sem(m):raise SystemExit('semantic gate accepted credential/path/param mutation '+k)
+              if not se(m) or not sem(m):raise SystemExit('credential/path/param mutation accepted '+k)
           path_cases=[('webBaseUrl','https://github.enterprise.example/anything'),('apiBaseUrl','https://api.github.enterprise.example/anything'),('apiBaseUrl','https://api.github.enterprise.example/api/v4')]
           for k,v in path_cases:
               m=copy.deepcopy(fixture);m[k]=v
