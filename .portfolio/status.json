@@ -6,7 +6,9 @@
   "siteHref": "/guard/",
   "repository": "InfrastructureProductWorks/iaap-guard",
   "posture": "CONTINUE_VALIDATION",
-  "version": "1.0.2",
+  "versions": {
+    "product": "1.0.2"
+  },
   "maturity": {
     "stageIndex": 4,
     "stage": "Integrate",
