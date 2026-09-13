@@ -48,11 +48,11 @@ For `platform: ghes`:
 - `apiBaseUrl` is exactly `https://<fqdn>/api/v3`;
 - hostnames are lowercase ASCII DNS names with at least two labels;
 - each DNS label is 1–63 characters and the hostname is at most 253 characters;
-- internationalized names must be supplied in their lowercase ASCII A-label/punycode representation;
-- literal IPv4/IPv6 addresses, single-label names, explicit ports, trailing root dots, trailing slashes, userinfo, query strings, fragments, semicolon parameters, percent-encoded hostname aliases, and Unicode separator aliases are outside this v0 evidence contract; and
+- internationalized/punycode hostnames are outside this v0 evidence contract because IDNA equivalence has not been validated;
+- literal IPv4/IPv6 addresses and legacy numeric address spellings, single-label names, explicit ports, trailing root dots, trailing slashes, userinfo, query strings, fragments, semicolon parameters, percent-encoded hostname aliases, Unicode separator aliases, and trailing control characters are outside this v0 evidence contract; and
 - `github.com` and its true subdomains are excluded from GHES coordinates.
 
-The web and API hostnames are validated independently and are not required to be identical. This contract does not infer or claim a particular reverse-proxy, split-DNS, or API topology because no authorized GHES target has been observed. The exclusions above are evidence-scope boundaries, not claims that GHES itself can never be configured differently.
+The web and API hostnames are validated independently and are not required to be identical. This contract does not infer or claim a particular reverse-proxy, split-DNS, CNAME/resolved-destination equivalence, or API topology because no authorized GHES target has been observed or probed. The exclusions above are evidence-scope boundaries, not claims that GHES itself can never be configured differently.
 
 ## Customer custody model
 
