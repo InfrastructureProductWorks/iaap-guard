@@ -1,0 +1,181 @@
+name: EP-08 GHE-01 portability contract
+on:
+  pull_request:
+    paths: ["schemas/customer-controlled-github.schema.json", "config/customer-controlled-github-ghes.synthetic.json", "config/github-app-v0.json", "docs/EP-08-GHE-01-CUSTOMER-CONTROLLED-GITHUB.md", ".github/workflows/ghe01-portability-contract.yml"]
+  push:
+    branches: [main]
+    paths: ["schemas/customer-controlled-github.schema.json", "config/customer-controlled-github-ghes.synthetic.json", "config/github-app-v0.json", "docs/EP-08-GHE-01-CUSTOMER-CONTROLLED-GITHUB.md", ".github/workflows/ghe01-portability-contract.yml"]
+permissions: {contents: read}
+jobs:
+  validate-ghe01-contract:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with: {persist-credentials: false}
+      - name: Install validator dependencies
+        run: python3 -m pip install --disable-pip-version-check --no-deps jsonschema==4.25.1 attrs==25.3.0 jsonschema-specifications==2025.4.1 referencing==0.36.2 rpds-py==0.27.1 rfc3986-validator==0.1.1
+      - name: Validate bounded customer-controlled GitHub contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import copy,json,re
+          from pathlib import Path
+          from urllib.parse import urlparse
+          from jsonschema import Draft202012Validator,FormatChecker
+
+          def reject_duplicate_keys(pairs):
+            out={}
+            for k,v in pairs:
+              if k in out:raise ValueError('duplicate JSON key: '+repr(k))
+              out[k]=v
+            return out
+          def reject_nonstandard_constant(value):
+            raise ValueError('non-standard JSON constant: '+value)
+          def load_json(path):
+            try:
+              return json.loads(Path(path).read_text(encoding='utf-8'),object_pairs_hook=reject_duplicate_keys,parse_constant=reject_nonstandard_constant)
+            except (json.JSONDecodeError,UnicodeDecodeError,ValueError) as exc:
+              raise SystemExit(f'{path}: invalid or ambiguous JSON: {exc}')
+
+          schema=load_json('schemas/customer-controlled-github.schema.json')
+          fixture=load_json('config/customer-controlled-github-ghes.synthetic.json')
+          app_contract=load_json('config/github-app-v0.json')
+          expected_permissions={'metadata':'read','contents':'read','pull_requests':'read','checks':'write'}
+          authority_keys={'repositoryWriteAuthorityAdded','infrastructureAuthorityAdded','authorizationAuthorityAdded','mergeAuthorityAdded','deploymentAuthorityAdded'}
+          expected_fixture={
+            'schemaVersion':'iaap-guard-customer-github/v0','platform':'ghes',
+            'webBaseUrl':'https://github.enterprise.example','apiBaseUrl':'https://github.enterprise.example/api/v3',
+            'appOwnership':'customer-controlled','installationOwnership':'customer-controlled','repositorySelection':'explicit',
+            'requiredPermissions':expected_permissions,
+            'supportClaim':False,'authorizedTargetObserved':False,'networkProbePerformed':False,'credentialsEmbedded':False,
+            'authority':{k:False for k in authority_keys}
+          }
+          if fixture!=expected_fixture:raise SystemExit('synthetic GHES fixture differs from canonical evidence record')
+          if app_contract.get('repositoryPermissions')!=expected_permissions:raise SystemExit('current Guard App permissions differ from GHE-01 bounded permission contract')
+
+          label=r'[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?'
+          hosted_suffix=r'(?:github\.com|ghe\.com)'
+          ghes_web=rf'^https://(?=[a-z0-9.-]{{3,253}}(?![\s\S]))(?=[a-z0-9.-]*[a-z])(?!(?:[a-z0-9-]+\.)*xn--)(?!(?:(?:0x[0-9a-f]+|[0-9]+)\.){{1,3}}(?:0x[0-9a-f]+|[0-9]+)(?![\s\S]))(?!(?:{label}\.)*{hosted_suffix}(?![\s\S]))(?:{label}\.)+{label}(?![\s\S])'
+          ghes_api=rf'^https://(?=[a-z0-9.-]{{3,253}}/api/v3(?![\s\S]))(?=[a-z0-9.-]*[a-z][a-z0-9.-]*/api/v3)(?!(?:[a-z0-9-]+\.)*xn--)(?!(?:(?:0x[0-9a-f]+|[0-9]+)\.){{1,3}}(?:0x[0-9a-f]+|[0-9]+)/api/v3(?![\s\S]))(?!(?:{label}\.)*{hosted_suffix}/api/v3(?![\s\S]))(?:{label}\.)+{label}/api/v3(?![\s\S])'
+          expected_schema={
+            '$schema':'https://json-schema.org/draft/2020-12/schema',
+            '$id':'https://infrastructureproductworks.github.io/iaap-guard/schemas/customer-controlled-github.schema.json',
+            'title':'IaaP Guard customer-controlled GitHub portability contract',
+            'type':'object','additionalProperties':False,
+            'required':['schemaVersion','platform','webBaseUrl','apiBaseUrl','appOwnership','installationOwnership','repositorySelection','requiredPermissions','supportClaim','authorizedTargetObserved','networkProbePerformed','credentialsEmbedded','authority'],
+            'properties':{
+              'schemaVersion':{'const':'iaap-guard-customer-github/v0'},
+              'platform':{'enum':['github.com','ghes']},
+              'webBaseUrl':{'type':'string','format':'uri'},
+              'apiBaseUrl':{'type':'string','format':'uri'},
+              'appOwnership':{'enum':['vendor-hosted','customer-controlled']},
+              'installationOwnership':{'const':'customer-controlled'},
+              'repositorySelection':{'const':'explicit'},
+              'requiredPermissions':{'type':'object','additionalProperties':False,'required':['metadata','contents','pull_requests','checks'],'properties':{'metadata':{'const':'read'},'contents':{'const':'read'},'pull_requests':{'const':'read'},'checks':{'const':'write'}}},
+              'supportClaim':{'const':False},'authorizedTargetObserved':{'const':False},'networkProbePerformed':{'const':False},'credentialsEmbedded':{'const':False},
+              'authority':{'type':'object','additionalProperties':False,'required':['repositoryWriteAuthorityAdded','infrastructureAuthorityAdded','authorizationAuthorityAdded','mergeAuthorityAdded','deploymentAuthorityAdded'],'properties':{'repositoryWriteAuthorityAdded':{'const':False},'infrastructureAuthorityAdded':{'const':False},'authorizationAuthorityAdded':{'const':False},'mergeAuthorityAdded':{'const':False},'deploymentAuthorityAdded':{'const':False}}}
+            },
+            'allOf':[
+              {'if':{'properties':{'platform':{'const':'github.com'}}},'then':{'properties':{'appOwnership':{'const':'vendor-hosted'},'webBaseUrl':{'const':'https://github.com'},'apiBaseUrl':{'const':'https://api.github.com'}}}},
+              {'if':{'properties':{'platform':{'const':'ghes'}}},'then':{'properties':{'appOwnership':{'const':'customer-controlled'},'webBaseUrl':{'pattern':ghes_web},'apiBaseUrl':{'pattern':ghes_api}}}}
+            ]
+          }
+          if schema!=expected_schema:raise SystemExit('published schema differs from canonical bounded contract')
+          Draft202012Validator.check_schema(schema)
+          validator=Draft202012Validator(schema,format_checker=FormatChecker())
+          def se(r):return sorted(e.message for e in validator.iter_errors(r))
+          expected_keys=set(expected_schema['required'])
+          label_re=re.compile(r'^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$')
+          legacy_numeric_re=re.compile(r'^(?:(?:0x[0-9a-f]+|[0-9]+)\.){1,3}(?:0x[0-9a-f]+|[0-9]+)$')
+          def false_bool(v):return type(v) is bool and v is False
+          def hosted_cloud(host):return host in ('github.com','ghe.com') or host.endswith('.github.com') or host.endswith('.ghe.com')
+          def canonical_ghes(v,api=False):
+            if not isinstance(v,str):return False
+            try:
+              p=urlparse(v);host=p.hostname;port=p.port
+            except (TypeError,ValueError):return False
+            if p.scheme!='https' or not host or port is not None:return False
+            if p.username is not None or p.password is not None or p.params or p.query or p.fragment:return False
+            try:host.encode('ascii')
+            except UnicodeEncodeError:return False
+            if host!=host.lower() or len(host)<3 or len(host)>253 or '.' not in host or not any('a'<=c<='z' for c in host):return False
+            labels=host.split('.')
+            if any(not label_re.fullmatch(x) for x in labels):return False
+            if any(x.startswith('xn--') for x in labels) or legacy_numeric_re.fullmatch(host) or hosted_cloud(host):return False
+            path='/api/v3' if api else ''
+            if p.path!=path:return False
+            return v==f'https://{host}{path}'
+          def sem(r):
+            o=[]
+            if not isinstance(r,dict) or set(r)!=expected_keys:return ['top-level-shape']
+            common={'schemaVersion':'iaap-guard-customer-github/v0','installationOwnership':'customer-controlled','repositorySelection':'explicit'}
+            for k,v in common.items():
+              if type(r.get(k)) is not type(v) or r.get(k)!=v:o.append(k)
+            for k in ('supportClaim','authorizedTargetObserved','networkProbePerformed','credentialsEmbedded'):
+              if not false_bool(r.get(k)):o.append(k)
+            perms=r.get('requiredPermissions')
+            if not isinstance(perms,dict) or perms!=expected_permissions:o.append('requiredPermissions')
+            a=r.get('authority')
+            if not isinstance(a,dict) or set(a)!=authority_keys or any(not false_bool(a.get(k)) for k in authority_keys):o.append('authority')
+            platform=r.get('platform')
+            if platform=='ghes':
+              if r.get('appOwnership')!='customer-controlled':o.append('appOwnership')
+              if not canonical_ghes(r.get('webBaseUrl')):o.append('webBaseUrl')
+              if not canonical_ghes(r.get('apiBaseUrl'),True):o.append('apiBaseUrl')
+            elif platform=='github.com':
+              if r.get('appOwnership')!='vendor-hosted':o.append('appOwnership')
+              if r.get('webBaseUrl')!='https://github.com':o.append('webBaseUrl')
+              if r.get('apiBaseUrl')!='https://api.github.com':o.append('apiBaseUrl')
+            else:o.append('platform')
+            return sorted(set(o))
+          def must_reject(m,label):
+            if not se(m):raise SystemExit('schema accepted '+label)
+            if not sem(m):raise SystemExit('semantic gate accepted '+label)
+          def must_accept(m,label):
+            if se(m) or sem(m):raise SystemExit('valid contract rejected '+label)
+
+          must_accept(fixture,'baseline GHES fixture')
+          hosted=copy.deepcopy(fixture);hosted.update({'platform':'github.com','appOwnership':'vendor-hosted','webBaseUrl':'https://github.com','apiBaseUrl':'https://api.github.com'})
+          must_accept(hosted,'hosted GitHub.com coordinate baseline in synthetic record')
+
+          for k in expected_keys:
+            m=copy.deepcopy(fixture);m.pop(k);must_reject(m,'missing top-level '+k)
+          m=copy.deepcopy(fixture);m['unexpectedTopLevel']=False;must_reject(m,'extra top-level key')
+          scalar_mutations={'schemaVersion':['wrong',None,0],'platform':['gitlab','GitHub.com',None],'appOwnership':['vendor-hosted',None,0],'installationOwnership':['vendor-controlled',None,0],'repositorySelection':['all',None,0],'supportClaim':[True,0,None,'false'],'authorizedTargetObserved':[True,0,None,'false'],'networkProbePerformed':[True,0,None,'false'],'credentialsEmbedded':[True,0,None,'false']}
+          for k,vals in scalar_mutations.items():
+            for v in vals:
+              m=copy.deepcopy(fixture);m[k]=v;must_reject(m,f'{k}={v!r}')
+
+          for k in expected_permissions:
+            m=copy.deepcopy(fixture);m['requiredPermissions'].pop(k);must_reject(m,'missing permission '+k)
+          for k,v in {'metadata':'write','contents':'write','pull_requests':'write','checks':'read'}.items():
+            m=copy.deepcopy(fixture);m['requiredPermissions'][k]=v;must_reject(m,'permission widening '+k)
+          m=copy.deepcopy(fixture);m['requiredPermissions']['administration']='read';must_reject(m,'extra permission key')
+          for k in authority_keys:
+            for v in (True,0,None):
+              m=copy.deepcopy(fixture);m['authority'][k]=v;must_reject(m,f'authority {k}={v!r}')
+            m=copy.deepcopy(fixture);m['authority'].pop(k);must_reject(m,'missing authority '+k)
+          m=copy.deepcopy(fixture);m['authority']['unexpectedAuthority']=False;must_reject(m,'extra authority key')
+
+          bad_web=['https://github.com','https://www.github.com','https://foo.bar.github.com','https://ghe.com','https://octocorp.ghe.com','https://api.octocorp.ghe.com','https://GitHub.com','https://API.GitHub.com','https://github.com.','https://github%2ecom','https://github%E3%80%82com','https://github.enterprise.example/','https://github.enterprise.example:443','https://github.enterprise.example:8443','https://127.0.0.1','https://[::1]','https://0x7f.0.0.1','https://0x7f.0x0.0x0.0x1','https://intranet','https://xn--bcher-kva.example','https://foo_bar.example','https://-bad.example','https://bad-.example','https://bad..example','http://github.enterprise.example','https://marker@github.enterprise.example','https://github.enterprise.example?marker=value','https://github.enterprise.example#marker','https://github.enterprise.example/;marker=value','https://github.enterprise.example\n','https://github.enterprise.example\r']
+          bad_api=['https://api.github.com/api/v3','https://foo.github.com/api/v3','https://ghe.com/api/v3','https://api.octocorp.ghe.com/api/v3','https://API.GitHub.com/api/v3','https://api.github.com./api/v3','https://api%2egithub%2ecom/api/v3','https://api%E3%80%82github%E3%80%82com/api/v3','https://github.enterprise.example/api/v3/','https://github.enterprise.example:443/api/v3','https://127.0.0.1/api/v3','https://[::1]/api/v3','https://0x7f.0.0.1/api/v3','https://intranet/api/v3','https://xn--bcher-kva.example/api/v3','https://github.enterprise.example/api/v4','https://github.enterprise.example/anything','http://github.enterprise.example/api/v3','https://marker@github.enterprise.example/api/v3','https://github.enterprise.example/api/v3?marker=value','https://github.enterprise.example/api/v3#marker','https://github.enterprise.example/api/v3;marker=value','https://github.enterprise.example/api/v3\n']
+          long_label='a'*64+'.example'
+          long_host='.'.join(['a'*63]*4)+'.example'
+          bad_web+=['https://'+long_label,'https://'+long_host]
+          bad_api+=['https://'+long_label+'/api/v3','https://'+long_host+'/api/v3']
+          for v in bad_web:
+            m=copy.deepcopy(fixture);m['webBaseUrl']=v;must_reject(m,'bad GHES web coordinate '+repr(v))
+          for v in bad_api:
+            m=copy.deepcopy(fixture);m['apiBaseUrl']=v;must_reject(m,'bad GHES API coordinate '+repr(v))
+
+          valid_controls=[('webBaseUrl','https://github.enterprise.example'),('webBaseUrl','https://notgithub.com'),('webBaseUrl','https://github.com.example'),('webBaseUrl','https://ghe.com.example'),('webBaseUrl','https://myghe.com'),('webBaseUrl','https://git-hub.enterprise.example'),('apiBaseUrl','https://api.github.enterprise.example/api/v3'),('apiBaseUrl','https://notgithub.com/api/v3'),('apiBaseUrl','https://github.com.example/api/v3'),('apiBaseUrl','https://ghe.com.example/api/v3')]
+          for k,v in valid_controls:
+            m=copy.deepcopy(fixture);m[k]=v;must_accept(m,'valid normalized '+k+' '+v)
+
+          bad_hosted=[{'appOwnership':'customer-controlled'},{'webBaseUrl':'https://www.github.com'},{'apiBaseUrl':'https://github.com/api/v3'},{'webBaseUrl':'https://github.com/'},{'webBaseUrl':'https://GitHub.com'}]
+          for changes in bad_hosted:
+            m=copy.deepcopy(hosted);m.update(changes);must_reject(m,'invalid hosted baseline '+repr(changes))
+
+          print('GHE-01 customer-controlled GitHub portability contract: PASS')
+          PY
