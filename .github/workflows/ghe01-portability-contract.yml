@@ -26,8 +26,8 @@ jobs:
 
           schema=json.loads(Path('schemas/customer-controlled-github.schema.json').read_text())
           fixture=json.loads(Path('config/customer-controlled-github-ghes.synthetic.json').read_text())
-          ghes_web=r'^https://(?!(?:[^@/?#]+\.)?github\.com(?::[0-9]+)?/?$)[^@/?#]+/?$'
-          ghes_api=r'^https://(?!(?:[^@/?#]+\.)?github\.com(?::[0-9]+)?/api/v3/?$)[^@/?#]+/api/v3/?$'
+          ghes_web=r'^https://(?!(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)*github\.com(?::[0-9]+)?/?$)(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)*[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?::[0-9]+)?/?$'
+          ghes_api=r'^https://(?!(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)*github\.com(?::[0-9]+)?/api/v3/?$)(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)*[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?::[0-9]+)?/api/v3/?$'
           expected_schema={
             '$schema':'https://json-schema.org/draft/2020-12/schema',
             '$id':'https://infrastructureproductworks.github.io/iaap-guard/schemas/customer-controlled-github.schema.json',
@@ -98,14 +98,18 @@ jobs:
           for k,v in mutations:
             m=copy.deepcopy(fixture);m[k]=v
             if not se(m) or not sem(m):raise SystemExit('boundary mutation accepted '+k)
-          hosted_web=['https://github.com','https://www.github.com','https://foo.bar.github.com']
-          hosted_api=['https://github.com/api/v3','https://api.github.com/api/v3','https://foo.github.com/api/v3']
+          hosted_web=['https://github.com','https://www.github.com','https://foo.bar.github.com','https://GitHub.com','https://API.GitHub.com','https://github.com.','https://github%2ecom','https://github%E3%80%82com']
+          hosted_api=['https://github.com/api/v3','https://api.github.com/api/v3','https://foo.github.com/api/v3','https://API.GitHub.com/api/v3','https://api.github.com./api/v3','https://api%2egithub%2ecom/api/v3','https://api%E3%80%82github%E3%80%82com/api/v3']
           for v in hosted_web:
             m=copy.deepcopy(fixture);m['webBaseUrl']=v
             if not se(m) or not sem(m):raise SystemExit('hosted web coordinate accepted '+v)
           for v in hosted_api:
             m=copy.deepcopy(fixture);m['apiBaseUrl']=v
             if not se(m) or not sem(m):raise SystemExit('hosted api coordinate accepted '+v)
+          valid_controls=[('webBaseUrl','https://github.enterprise.example'),('apiBaseUrl','https://api.github.enterprise.example/api/v3')]
+          for k,v in valid_controls:
+            m=copy.deepcopy(fixture);m[k]=v
+            if se(m) or sem(m):raise SystemExit('valid normalized GHES coordinate rejected '+k)
           component_cases=[('webBaseUrl','https://marker@github.enterprise.example'),('apiBaseUrl','https://marker@github.enterprise.example/api/v3'),('webBaseUrl','https://github.enterprise.example/?marker=value'),('apiBaseUrl','https://github.enterprise.example/api/v3?marker=value'),('webBaseUrl','https://github.enterprise.example/#marker'),('apiBaseUrl','https://github.enterprise.example/api/v3#marker'),('webBaseUrl','https://github.enterprise.example/;marker=value'),('apiBaseUrl','https://github.enterprise.example/api/v3;marker=value')]
           for k,v in component_cases:
             m=copy.deepcopy(fixture);m[k]=v
