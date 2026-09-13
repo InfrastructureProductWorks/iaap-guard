@@ -36,6 +36,8 @@ The contract requires:
 
 `supportClaim: false` is scoped to this synthetic customer-controlled portability record. It does not revoke or contradict the separately accepted hosted GitHub.com Guard App support path.
 
+GHE-01 is a custody, coordinate, permission, and authority portability contract. It is not a replacement GitHub App registration manifest. Existing Guard event subscriptions remain governed by the accepted GitHub App contract; this tranche does not claim that those subscriptions have been registered or exercised on GHES.
+
 ## Canonical GHES coordinate profile
 
 GHE-01 v0 intentionally uses a narrow coordinate representation so the published schema and deterministic validator have one meaning rather than several equivalent URI spellings.
@@ -74,6 +76,7 @@ The customer-controlled/GHES contract is additive. It must not be interpreted as
 
 - Guard has been installed on a live GHES instance;
 - App registration or installation has succeeded on GHES;
+- GHES event-subscription compatibility has been established;
 - GHES version compatibility has been established;
 - private CA, proxy, or TLS-interception behavior has been validated;
 - restricted-egress or disconnected operation has been validated; or
