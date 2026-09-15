@@ -35,6 +35,7 @@ jobs:
           path = Path('.portfolio/status.json')
           stages = ['Define', 'Build', 'Validate', 'Integrate', 'Operationalize']
           statuses = ['DEFINING', 'BUILDING', 'VALIDATING', 'INTEGRATING', 'OPERATIONALIZING']
+          authority_notice = 'Engineering telemetry only. No production, deployment, approval, cloud, exception, or risk-acceptance authority is implied.'
           allowed_top = {
               'schemaVersion', 'id', 'name', 'role', 'siteHref', 'repository',
               'posture', 'versions', 'maturity', 'evidence', 'nextMilestone',
@@ -43,9 +44,17 @@ jobs:
           allowed_maturity = {'stageIndex', 'stage', 'status', 'state'}
           errors = []
 
+          def unique_object(pairs):
+              result = {}
+              for key, value in pairs:
+                  if key in result:
+                      raise ValueError(f'duplicate JSON object key: {key}')
+                  result[key] = value
+              return result
+
           try:
-              data = json.loads(path.read_text(encoding='utf-8'))
-          except (OSError, json.JSONDecodeError) as exc:
+              data = json.loads(path.read_text(encoding='utf-8'), object_pairs_hook=unique_object)
+          except (OSError, json.JSONDecodeError, ValueError) as exc:
               raise SystemExit(f'invalid portfolio status contract: {exc}')
 
           if set(data) - allowed_top:
@@ -58,6 +67,8 @@ jobs:
               errors.append('repository identity mismatch')
           if data.get('posture') != 'CONTINUE_VALIDATION':
               errors.append('posture must remain CONTINUE_VALIDATION')
+          if data.get('authorityNotice') != authority_notice:
+              errors.append('authorityNotice must match the canonical Guard non-authority boundary')
 
           expected_versions = {
               'product': Path('VERSION').read_text(encoding='utf-8').strip()
@@ -75,7 +86,7 @@ jobs:
           ):
               errors.append('siteHref must be a safe site-relative path')
 
-          for key in ('name', 'role', 'evidence', 'nextMilestone', 'authorityNotice'):
+          for key in ('name', 'role', 'evidence', 'nextMilestone'):
               value = data.get(key)
               if not isinstance(value, str) or not value.strip():
                   errors.append(f'{key} must be non-empty text')
