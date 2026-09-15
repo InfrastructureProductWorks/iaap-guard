@@ -5,11 +5,13 @@ on:
     paths:
       - '.portfolio/status.json'
       - '.github/workflows/portfolio-status.yml'
+      - 'VERSION'
   push:
     branches: [main]
     paths:
       - '.portfolio/status.json'
       - '.github/workflows/portfolio-status.yml'
+      - 'VERSION'
 
 permissions:
   contents: read
@@ -56,8 +58,12 @@ jobs:
               errors.append('repository identity mismatch')
           if data.get('posture') != 'CONTINUE_VALIDATION':
               errors.append('posture must remain CONTINUE_VALIDATION')
-          if data.get('versions') != {'product': '1.0.2'}:
-              errors.append('versions must exactly match Guard 1.0.2')
+
+          expected_versions = {
+              'product': Path('VERSION').read_text(encoding='utf-8').strip()
+          }
+          if data.get('versions') != expected_versions:
+              errors.append(f'versions must match canonical VERSION: {expected_versions!r}')
 
           href = data.get('siteHref')
           if (
