@@ -1,0 +1,21 @@
+{
+  "schemaVersion": "portfolio-product-status/v1",
+  "id": "guard",
+  "name": "IaaP Guard",
+  "role": "Validate",
+  "siteHref": "/guard/",
+  "repository": "InfrastructureProductWorks/iaap-guard",
+  "posture": "CONTINUE_VALIDATION",
+  "versions": {
+    "product": "1.0.2"
+  },
+  "maturity": {
+    "stageIndex": 4,
+    "stage": "Integrate",
+    "status": "INTEGRATING",
+    "state": "Customer-controlled GitHub portability validation"
+  },
+  "evidence": "Hosted GitHub App with deterministic checks, evidence continuity, bounded permissions, and an accepted GHE-01 customer-controlled GitHub portability contract on protected main.",
+  "nextMilestone": "Complete portfolio-wide GHE-04 self-hosted-runner portability and continue restricted-network hardening under EP-08.",
+  "authorityNotice": "Engineering telemetry only. No production, deployment, approval, cloud, exception, or risk-acceptance authority is implied."
+}

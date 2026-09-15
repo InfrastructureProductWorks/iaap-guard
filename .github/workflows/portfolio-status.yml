@@ -1,0 +1,119 @@
+name: Portfolio Status
+
+on:
+  pull_request:
+    paths:
+      - '.portfolio/status.json'
+      - '.github/workflows/portfolio-status.yml'
+      - 'VERSION'
+  push:
+    branches: [main]
+    paths:
+      - '.portfolio/status.json'
+      - '.github/workflows/portfolio-status.yml'
+      - 'VERSION'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Validate product-owned portfolio status contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import sys
+          from pathlib import Path
+
+          path = Path('.portfolio/status.json')
+          stages = ['Define', 'Build', 'Validate', 'Integrate', 'Operationalize']
+          statuses = ['DEFINING', 'BUILDING', 'VALIDATING', 'INTEGRATING', 'OPERATIONALIZING']
+          authority_notice = 'Engineering telemetry only. No production, deployment, approval, cloud, exception, or risk-acceptance authority is implied.'
+          allowed_top = {
+              'schemaVersion', 'id', 'name', 'role', 'siteHref', 'repository',
+              'posture', 'versions', 'maturity', 'evidence', 'nextMilestone',
+              'authorityNotice'
+          }
+          allowed_maturity = {'stageIndex', 'stage', 'status', 'state'}
+          errors = []
+
+          def unique_object(pairs):
+              result = {}
+              for key, value in pairs:
+                  if key in result:
+                      raise ValueError(f'duplicate JSON object key: {key}')
+                  result[key] = value
+              return result
+
+          try:
+              data = json.loads(path.read_text(encoding='utf-8'), object_pairs_hook=unique_object)
+          except (OSError, json.JSONDecodeError, ValueError) as exc:
+              raise SystemExit(f'invalid portfolio status contract: {exc}')
+
+          if set(data) - allowed_top:
+              errors.append(f'unknown top-level keys: {sorted(set(data) - allowed_top)}')
+          if data.get('schemaVersion') != 'portfolio-product-status/v1':
+              errors.append('schemaVersion must be portfolio-product-status/v1')
+          if data.get('id') != 'guard':
+              errors.append('id must be guard')
+          if data.get('repository') != 'InfrastructureProductWorks/iaap-guard':
+              errors.append('repository identity mismatch')
+          if data.get('posture') != 'CONTINUE_VALIDATION':
+              errors.append('posture must remain CONTINUE_VALIDATION')
+          if data.get('authorityNotice') != authority_notice:
+              errors.append('authorityNotice must match the canonical Guard non-authority boundary')
+
+          expected_versions = {
+              'product': Path('VERSION').read_text(encoding='utf-8').strip()
+          }
+          if data.get('versions') != expected_versions:
+              errors.append(f'versions must match canonical VERSION: {expected_versions!r}')
+
+          href = data.get('siteHref')
+          if (
+              not isinstance(href, str)
+              or not href.startswith('/')
+              or href.startswith('//')
+              or '\\' in href
+              or any(ch in href for ch in ('\r', '\n', '\t'))
+          ):
+              errors.append('siteHref must be a safe site-relative path')
+
+          for key in ('name', 'role', 'evidence', 'nextMilestone'):
+              value = data.get(key)
+              if not isinstance(value, str) or not value.strip():
+                  errors.append(f'{key} must be non-empty text')
+
+          maturity = data.get('maturity')
+          if not isinstance(maturity, dict):
+              errors.append('maturity must be an object')
+          else:
+              if set(maturity) != allowed_maturity:
+                  errors.append(f'maturity keys must be exactly {sorted(allowed_maturity)}')
+              idx = maturity.get('stageIndex')
+              if type(idx) is not int or idx < 1 or idx > len(stages):
+                  errors.append('stageIndex must be an integer from 1 through 5')
+              else:
+                  if maturity.get('stage') != stages[idx - 1]:
+                      errors.append('stage must match stageIndex')
+                  if maturity.get('status') != statuses[idx - 1]:
+                      errors.append('status must correspond to stageIndex')
+              state = maturity.get('state')
+              if not isinstance(state, str) or not state.strip():
+                  errors.append('maturity.state must be non-empty text')
+
+          if errors:
+              print('portfolio product status validation failed:', file=sys.stderr)
+              for error in errors:
+                  print(f'- {error}', file=sys.stderr)
+              raise SystemExit(1)
+
+          print('portfolio product status validation passed')
+          PY
