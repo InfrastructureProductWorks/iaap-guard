@@ -16,6 +16,6 @@
     "state": "Customer-controlled GitHub portability validation"
   },
   "evidence": "Hosted GitHub App with deterministic checks, evidence continuity, bounded permissions, and an accepted GHE-01 customer-controlled GitHub portability contract on protected main.",
-  "nextMilestone": "Complete portfolio-wide GHE-04 self-hosted-runner portability and continue restricted-network hardening under EP-08.",
+  "nextMilestone": "Continue GHE-05 private-CA, proxy and TLS validation, then GHE-06 restricted-network hardening under EP-08; live GHES support remains gated.",
   "authorityNotice": "Engineering telemetry only. No production, deployment, approval, cloud, exception, or risk-acceptance authority is implied."
 }
