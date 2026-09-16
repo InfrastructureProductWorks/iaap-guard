@@ -66,7 +66,7 @@ For a future customer-controlled GHES deployment, the customer owns and controls
 4. repository selection;
 5. network policy and trust configuration;
 6. installation lifecycle, including removal; and
-7. any later self-hosted runner configuration introduced under GHE-04.
+7. self-hosted runner configuration and operation. The accepted bounded implementation-validation scope is described in [GHE-04 public validation scope](EP-08-GHE-04-VALIDATION-SCOPE.md); live customer-runner execution remains unobserved.
 
 Infrastructure Product Works supplies the Guard contract and implementation package. The contract does not grant Infrastructure Product Works standing access to the customer's GitHub environment.
 

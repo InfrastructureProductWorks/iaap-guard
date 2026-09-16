@@ -15,7 +15,7 @@
     "status": "INTEGRATING",
     "state": "Customer-controlled GitHub portability validation"
   },
-  "evidence": "Hosted GitHub App with deterministic checks, evidence continuity, bounded permissions, and an accepted GHE-01 customer-controlled GitHub portability contract on protected main.",
+  "evidence": "Hosted GitHub App with deterministic checks, evidence continuity, bounded permissions, and an accepted GHE-01 customer-controlled GitHub portability contract on protected main. Guard's bounded self-hosted implementation validation scope is accepted as a maintainer attestation recorded in docs/EP-08-GHE-04-VALIDATION-SCOPE.md; customer-runner execution and live GHES support remain unobserved.",
   "nextMilestone": "Continue GHE-05 private-CA, proxy and TLS validation, then GHE-06 restricted-network hardening under EP-08; live GHES support remains gated.",
   "authorityNotice": "Engineering telemetry only. No production, deployment, approval, cloud, exception, or risk-acceptance authority is implied."
 }
