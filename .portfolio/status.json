@@ -13,9 +13,9 @@
     "stageIndex": 4,
     "stage": "Integrate",
     "status": "INTEGRATING",
-    "state": "Customer-controlled GitHub portability validation"
+    "state": "GHE-06 bounded restricted profile accepted"
   },
-  "evidence": "Hosted GitHub App with deterministic checks, bounded permissions and an accepted GHE-01 contract and GHE-04 implementation-validation attestation. Bounded synthetic private-CA, HTTP CONNECT proxy and TLS client validation is accepted by maintainer attestation in docs/EP-08-GHE-05-VALIDATION-SCOPE.md; this is not a hosted deployment, customer-runner or live GHES acceptance claim.",
-  "nextMilestone": "Continue remaining GHE-05 transport and proxy profiles, followed by GHE-06 restricted-network dependencies; customer-runner execution and live GHES support remain gated.",
+  "evidence": "Hosted GitHub App and accepted GHE-01/GHE-04 portability remain intact. The GHE-06 bounded restricted profile now has machine-enforced exclusions for hosted/public package, container, Actions, and telemetry surfaces, while the maintained Guard runtime carries accepted local/offline execution evidence. Customer-runner and live GHES remain unobserved.",
+  "nextMilestone": "Preserve the accepted GHE-06 restricted profile. Advance GHE-07 only on an authorized customer-runner/live GitHub or GHES target; in parallel, bind trusted profile/version approval state into connected review and evidence surfaces without widening authority.",
   "authorityNotice": "Engineering telemetry only. No production, deployment, approval, cloud, exception, or risk-acceptance authority is implied."
 }
