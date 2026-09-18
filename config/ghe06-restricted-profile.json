@@ -1,0 +1,22 @@
+{
+  "schemaVersion": "iaap-guard-ghe06-restricted-profile/v1",
+  "supportClaim": false,
+  "restrictedNetworkExecutionSupported": false,
+  "boundedSurface": "public-contracts-and-assurance-only",
+  "runtimeRepository": "InfrastructureProductWorks/iaap-guard-core",
+  "retiredCompositeAction": true,
+  "packageRegistryDisposition": "disabled_in_restricted_profile",
+  "containerRegistryDisposition": "disabled_in_restricted_profile",
+  "githubActionsDisposition": "hosted_orchestration_only_customer_runner_belongs_to_ghe07",
+  "telemetryDisposition": "disabled_in_restricted_profile",
+  "githubApiDisposition": "hosted_app_outside_ghe06_live_ghes_belongs_to_ghe07",
+  "excludedWorkflows": [
+    "dependency-review.yml",
+    "devcontainer.yml",
+    "dogfood-public-program-hub.yml",
+    "ghe01-portability-contract.yml",
+    "portfolio-status.yml",
+    "root-readme-links.yml",
+    "validate.yml"
+  ]
+}
