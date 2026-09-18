@@ -3,7 +3,7 @@
   "supportClaim": false,
   "restrictedNetworkExecutionSupported": false,
   "boundedSurface": "public-contracts-and-assurance-only",
-  "runtimeRepository": "InfrastructureProductWorks/iaap-guard-core",
+  "runtimeRepository": "private-maintained-runtime",
   "retiredCompositeAction": true,
   "packageRegistryDisposition": "disabled_in_restricted_profile",
   "containerRegistryDisposition": "disabled_in_restricted_profile",
