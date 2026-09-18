@@ -12,7 +12,7 @@ def main():
     assert data["supportClaim"] is False
     assert data["restrictedNetworkExecutionSupported"] is False
     assert data["retiredCompositeAction"] is True
-    assert data["runtimeRepository"] == "InfrastructureProductWorks/iaap-guard-core"
+    assert data["runtimeRepository"] == "private-maintained-runtime"
     actual = sorted(p.name for p in WORKFLOWS.glob("*.yml"))
     assert actual == sorted(data["excludedWorkflows"]), (actual, data["excludedWorkflows"])
     assert not (ROOT / "action.yml").exists()
