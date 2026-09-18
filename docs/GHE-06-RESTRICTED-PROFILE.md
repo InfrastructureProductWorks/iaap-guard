@@ -8,8 +8,7 @@ assurance only. The hosted GitHub App, every workflow in this repository,
 devcontainer/package acquisition, hosted status publication, GitHub API access,
 and the retired historical composite Action are outside that bounded runtime.
 
-The maintained deterministic runtime is in `InfrastructureProductWorks/iaap-guard-core`,
-whose separate GHE-06 evidence covers the executable restricted path.
+The maintained deterministic engine is private. Its separately governed GHE-06 evidence covers the executable restricted path.
 
 `config/ghe06-restricted-profile.json` is machine-checked by the normal validation
 workflow. The check fails if a workflow is added without being explicitly excluded,
