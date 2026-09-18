@@ -29,7 +29,7 @@ jobs:
             --require-hashes \
             -r .github/validation-requirements.txt
       - name: Validate GHE-06 restricted profile boundary
-        run: python3 scripts/validate_ghe06_restricted_profile.py
+        run: python3 .github/validate_ghe06_restricted_profile.py
       - name: Validate public contracts and distribution boundary
         shell: bash
         run: |
