@@ -1,42 +1,43 @@
-# IaaP Guard hosted service privacy notice — DRAFT FOR REVIEW
+# IaaP Guard GitHub App — Privacy Notice
 
-> **Not yet approved or effective.** This document is a proposed product-specific privacy notice for review by the service owner and legal/privacy reviewer. Do not use this draft as the Marketplace privacy-policy URL until its factual and legal review is complete.
+**Last updated:** November 14, 2026  
+**Service operator:** Infrastructure Product Works (IPW)  
+**Applies to:** The hosted [IaaP Guard GitHub App](https://github.com/apps/iaap-guard), not the separate IPW website or its demonstrations.
 
-## Scope
+## What the App does
 
-This notice is intended to cover the hosted IaaP Guard GitHub App operated by Infrastructure Product Works, not the separate marketing website, Cloudflare-protected demonstrations, or other IPW products. GitHub's own privacy practices apply separately to GitHub accounts and its platform.
+When installed on selected GitHub repositories, IaaP Guard receives GitHub webhook events and uses GitHub APIs to inspect pull-request changes and relevant repository revisions. It evaluates architecture, policy and evidence rules and publishes an `IaaP Guard / Architecture` Check to GitHub. Findings may include repository names, file paths, rule identifiers, scores, evaluation results, and revision identifiers. These results are visible to people who can access the relevant GitHub repository and its Checks.
 
-## Information processed for Guard evaluations
+## Information the App processes
 
-The hosted App receives GitHub webhook events associated with its installation and pull requests. The public product contract requests metadata (read), repository contents (read), pull requests (read), and checks (read/write). It uses installation-scoped credentials to read repository revisions and publish the `IaaP Guard / Architecture` Check with rule findings and evidence. A Check may identify repository paths, rules, scores, findings, and evidence continuity. Repository files and pull-request material can contain personal or sensitive information if an organization puts it there; avoid committing secrets or unnecessary personal data.
+The App receives webhook metadata and event payloads from GitHub, including installation identifiers, repository identifiers, pull-request identifiers, commit hashes, changed-file metadata, and GitHub account identifiers included in events. To evaluate supported changes, it reads repository content at relevant revisions, including full repository archives where required by its evaluation workflow. **Repository contents can include personal or confidential information if a repository owner places it there.** Do not commit secrets or unrelated personal data for Guard to evaluate.
 
-## Service providers and processing location
+The App's documented GitHub permissions are metadata read, repository contents read, pull requests read, and checks read/write. The App does not request repository contents write, workflow administration, merge authority, or customer-cloud credentials. Repository administrators control which repositories are included in an installation and can revoke access through GitHub.
 
-The deployed webhook adapter runs on AWS Lambda in `us-east-2`, using AWS Secrets Manager for App credentials and AWS CloudWatch for operational logging. The App uses GitHub APIs for installation-scoped repository access and Check publication. **Confirm** whether additional providers, cross-region backups, data transfers, telemetry, or other deployments are used before approving this notice. The AWS region alone is not a guarantee that all data stays in one country.
+## Why this information is used
 
-## Security and operational boundaries
+The service processes the above information to authenticate and handle GitHub events, determine the scope of requested checks, evaluate product and architecture rules, publish findings and evidence through GitHub Checks, and diagnose service failures and security events. Marketplace purchase notifications are acknowledged without granting repository evaluation or billing authority; the current handler does not persist marketplace account data.
 
-The webhook adapter verifies GitHub's webhook signature before processing events. GitHub App tokens are short-lived and installation-scoped. The public App contract does not grant repository content write, workflow administration, merge, cloud provisioning, or deployment authority. Security reports should use GitHub Private Vulnerability Reporting rather than public issues.
+## Where processing occurs and service providers
 
-## Logging and retention — review required
+The currently deployed webhook adapter runs on **Amazon Web Services (AWS) Lambda in the US East (Ohio), us-east-2 region**. It uses AWS Secrets Manager to retrieve application credentials and AWS CloudWatch for operational logs. It uses GitHub's API and GitHub App infrastructure for event delivery, installation authorization, repository access, and Check publication. GitHub and AWS may process information under their own service terms and practices. The AWS Lambda region is **not** a guarantee that all GitHub or AWS data, support, or backups remain in that region or the United States.
 
-The current AWS deployment template configures a 14-day CloudWatch log retention period for the Lambda function's designated log group. **This is not a verified universal retention or deletion commitment.** The service owner must verify what webhook metadata, payload fields, repository contents, Check outputs, GitHub records, AWS service logs, backups, and any other operational data are stored; how long each is retained; and how access, correction, deletion, and security requests are handled. Do not assume all records are deleted after 14 days.
+## Security
 
-## Purposes, sharing, and user requests — review required
+The hosted adapter checks GitHub's cryptographic webhook signature before processing event content. It uses GitHub App authentication and installation-scoped tokens for authorized repository access. The current implementation scans repository archives in temporary Lambda storage and publishes Check outputs to GitHub. Security issues should be reported through [GitHub Private Vulnerability Reporting](../SECURITY.md), not through public issues containing secrets or sensitive content.
 
-The observed service purpose is processing installation events and evaluating pull-request changes to publish architecture Checks. Before approval, verify all purposes, categories of recipients and processors, international transfer practices, applicable legal bases and rights, contact details, and whether any optional analytics or model training occurs. No assertion is made here about unverified practices.
+## Storage and retention
 
-## Support and contact
+The current Lambda deployment template configures **14 days of retention for its designated CloudWatch log group**. This setting does **not** describe or guarantee retention of GitHub webhook delivery records, GitHub Checks, AWS service-level logs, backups, repository content held by GitHub, or other provider records. The evaluation implementation uses temporary storage for repository archive processing. The current Marketplace event handler does not persist purchase account data. The service does not promise a single universal deletion period across GitHub, AWS, or provider backups.
 
-Product support instructions: [IaaP Guard support](SUPPORT.md). The operator must confirm a monitored privacy/support contact address before this notice becomes effective.
+Published Check results remain in GitHub subject to repository permissions and GitHub's retention and deletion controls. Repository owners can revoke the App's access through GitHub, but uninstalling the App should not be assumed to delete previously published GitHub Check records or provider-held logs.
 
-## Approval checklist
+## Requests and support
 
-- [ ] Confirm legal operator name and privacy contact address
-- [ ] Verify all data categories and sources from the running production implementation
-- [ ] Verify GitHub and AWS processing and any additional subprocessors
-- [ ] Verify actual retention, backups, deletion, and access-request handling
-- [ ] Verify geographic processing and any transfer disclosures
-- [ ] Verify security and incident contact procedures
-- [ ] Obtain legal/privacy owner approval and effective date
-- [ ] Publish approved notice on a publicly accessible, stable URL, then update the Marketplace required privacy-policy field
+For product questions and privacy-related requests, use the [public support instructions](SUPPORT.md) to initiate a non-sensitive inquiry. **Do not include credentials, private repository contents, sensitive personal information, or identity documents in public GitHub issues.** For security reports, use private vulnerability reporting. A monitored direct privacy contact channel and any identity verification needed for a request should be established before sensitive details are exchanged. Requests will be assessed in light of the records, access controls, and provider mechanisms actually available; this notice does not promise immediate erasure of provider backups or GitHub records.
+
+## Other uses and updates
+
+This notice describes the hosted GitHub App behavior identified in the current product implementation. It does not authorize using customer repository content for marketing, advertising, or model training. It does not establish a data-processing agreement, contractual service-level guarantee, or deployment authorization. Any material change in processing, additional subprocessors, optional telemetry, or data-handling commitments requires a corresponding notice and product review. Changes to this notice will be reflected by updating the date above.
+
+For the separate IPW marketing website and Cloudflare-protected demos, see the [website privacy notice](https://infrastructureproductworks.com/privacy/), which is a different processing context.
