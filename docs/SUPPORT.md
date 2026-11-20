@@ -1,5 +1,12 @@
 # Support
 
+## Contact IaaP Guard support
+
+**Need help with the hosted IaaP Guard GitHub App?** [Open a support request in GitHub Issues](https://github.com/InfrastructureProductWorks/iaap-guard/issues/new). This is the public customer support channel for installation, missing or unexpected `IaaP Guard / Architecture` Checks, configuration, documentation, and product behavior. Sign in to GitHub, select **New issue**, describe your question or problem, and submit it. The Infrastructure Product Works maintainers can respond in that issue; use the issue thread to follow up.
+
+When filing, include the repository name if it is public, the pull-request number, the expected behavior, the observed Check result, and reproduction steps **without confidential data**. If you cannot share the details publicly, do not post them in an issue; first request a private contact path using a non-sensitive public issue. For suspected vulnerabilities, use the private reporting route below.
+
+
 ## Supported path
 
 The supported distribution is the hosted [IaaP Guard GitHub App](https://github.com/apps/iaap-guard). The public composite Action and local public CLI are retired.
